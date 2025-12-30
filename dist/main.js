@@ -9,7 +9,19 @@ ctx.clearRect(0, 0, WIDTH, HEIGHT);
 const imageData = ctx.createImageData(WIDTH, HEIGHT);
 const pixels = imageData.data;
 let done = false;
-let gen = render();
+function render_gen() {
+    return render();
+}
+let gen = render_gen();
+addEventListener('keydown', (evt) => {
+    if (evt.key !== 'r')
+        return;
+    console.log('reload');
+    pixels.fill(0.0);
+    ctx.clearRect(0, 0, WIDTH, HEIGHT);
+    done = false;
+    gen = render_gen();
+});
 function draw() {
     if (!done) {
         const start = performance.now();
@@ -22,7 +34,10 @@ function draw() {
     }
     requestAnimationFrame(draw);
 }
-const sphere = new Sphere(new Vec3(0.0, 0.0, 5.0), 2.0);
+const spheres = [
+    new Sphere(new Vec3(-1.0, 0.0, 10.0), 4.0, new Vec3(1.0, 0.0, 0.0)),
+    new Sphere(new Vec3(1.0, .0, 5.0), 2.0, new Vec3(0.0, 1.0, 0.0)),
+];
 function* render() {
     for (let y = 0; y < HEIGHT; y++) {
         for (let x = 0; x < WIDTH; x++) {
@@ -30,10 +45,10 @@ function* render() {
             const nx = x / WIDTH * 2 - 1;
             const ny = y / HEIGHT * 2 - 1;
             const ray = new Ray(new Vec3(0, 0, 0), new Vec3(nx, ny, 1).normalize());
-            let [r, g, b] = sphere.intersects(ray);
-            pixels[idx + 0] = r * 255;
-            pixels[idx + 1] = g * 255;
-            pixels[idx + 2] = b * 255;
+            let color = ray.trace(spheres);
+            pixels[idx + 0] = color.x * 255;
+            pixels[idx + 1] = color.y * 255;
+            pixels[idx + 2] = color.z * 255;
             pixels[idx + 3] = 255;
             yield;
         }

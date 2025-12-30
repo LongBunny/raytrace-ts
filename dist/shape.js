@@ -1,9 +1,11 @@
 import { Vec3 } from './vector.js';
+import { HitInfo } from './hitinfo.js';
 const sun = new Vec3(0.5, -1.0, 0.0).normalize();
 export class Sphere {
-    constructor(pos, r) {
+    constructor(pos, r, color) {
         this.pos = pos;
         this.r = r;
+        this.color = color;
     }
     intersects(r) {
         const oc = r.origin.sub(this.pos);
@@ -12,18 +14,16 @@ export class Sphere {
         const c = oc.dot(oc) - this.r * this.r;
         const discriminant = b * b - 4 * a * c;
         if (discriminant < 0.0)
-            return [0.0, 0.0, 0.0];
+            return null;
         const sqr_dist = Math.sqrt(discriminant);
         const t1 = (-b - sqr_dist) / (2.0 * a);
         const t2 = (-b + sqr_dist) / (2.0 * a);
         if (t1 > 0.0 || t2 > 0.0) {
             const s = sun.dot(r.dir);
-            if (s > 0.0)
-                return [s, s, s];
-            else
-                return [0.0, 0.0, 0.0];
+            let out_color = this.color.mul(s * 2.0);
+            return new HitInfo(t1 > 0.0 ? t1 : t2, out_color);
         }
-        return [0.0, 0.0, 0.0];
+        return null;
     }
     ;
 }
