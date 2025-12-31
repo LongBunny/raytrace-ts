@@ -1,6 +1,8 @@
 export class HitInfo {
-    constructor(hit_distance, color) {
-        this.hit_distance = hit_distance;
+    constructor(distance, point, normal, color) {
+        this.distance = distance;
+        this.point = point;
+        this.normal = normal;
         this.color = color;
     }
 }

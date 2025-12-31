@@ -1,11 +1,15 @@
 import { Vec3 } from './vector.js';
 
 export class HitInfo {
-    hit_distance: number;
+    distance: number;
+    point: Vec3;
+    normal: Vec3;
     color: Vec3;
 
-    constructor(hit_distance: number, color: Vec3) {
-        this.hit_distance = hit_distance;
+    constructor(distance: number, point: Vec3, normal: Vec3, color: Vec3) {
+        this.distance = distance;
+        this.point = point;
+        this.normal = normal;
         this.color = color;
     }
 }

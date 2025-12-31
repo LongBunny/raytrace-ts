@@ -2,9 +2,11 @@ import { Vec3 } from './vector.js';
 import { Ray } from './ray.js';
 import { HitInfo } from './hitinfo.js';
 
-const sun = new Vec3(0.5, -1.0, 0.0).normalize();
+export interface Shape {
+    intersects(ray: Ray, sun: Vec3): HitInfo | null;
+}
 
-export class Sphere {
+export class Sphere implements Shape {
     pos: Vec3;
     r: number;
     color: Vec3;
@@ -15,11 +17,11 @@ export class Sphere {
         this.color = color;
     }
 
-    intersects(r: Ray): HitInfo | null {
-        const oc = r.origin.sub(this.pos);
+    intersects(ray: Ray, sun: Vec3): HitInfo | null {
+        const oc = ray.origin.sub(this.pos);
 
-        const a = r.dir.dot(r.dir);
-        const b = 2.0 * oc.dot(r.dir);
+        const a = ray.dir.dot(ray.dir);
+        const b = 2.0 * oc.dot(ray.dir);
         const c = oc.dot(oc) - this.r * this.r;
 
         const discriminant = b * b - 4 * a * c;
@@ -31,14 +33,15 @@ export class Sphere {
         const t1 = (-b - sqr_dist) / (2.0 * a);
         const t2 = (-b + sqr_dist) / (2.0 * a);
 
-        if (t1 > 0.0 || t2 > 0.0) {
-            const s = sun.dot(r.dir);
+        const eps = 1e-4;
+        let t = Number.POSITIVE_INFINITY;
+        if (t1 > eps) t = t1;
+        else if (t2 > eps) t = t2;
+        else return null;
 
-            let out_color = this.color.mul(s * 2.0);
+        const point = ray.origin.add(ray.dir.mul(t));
+        const normal = point.sub(this.pos).mul(1.0 / this.r);
 
-            return new HitInfo(t1 > 0.0 ? t1 : t2, out_color);
-        }
-
-        return null;
+        return new HitInfo(t, point, normal, this.color);
     };
 }

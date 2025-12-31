@@ -1,3 +1,4 @@
+import { BMath } from "./bmath.js";
 export class Vec3 {
     constructor(x, y, z) {
         this.x = x;
@@ -38,5 +39,17 @@ export class Vec3 {
     }
     normalize() {
         return this.div(this.mag());
+    }
+    reflect(a) {
+        return this.sub(a.mul(2 * this.dot(a)));
+    }
+    static lerp(a, b, t) {
+        return new Vec3(BMath.lerp(a.x, b.x, t), BMath.lerp(a.y, b.y, t), BMath.lerp(a.z, b.z, t));
+    }
+    static from_hex(hex) {
+        const r = ((hex >> 8 * 2) & 0xFF) / 255.0;
+        const g = ((hex >> 8 * 1) & 0xFF) / 255.0;
+        const b = ((hex >> 8 * 0) & 0xFF) / 255.0;
+        return new Vec3(r, g, b);
     }
 }
