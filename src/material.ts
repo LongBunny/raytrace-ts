@@ -10,7 +10,7 @@ export class Material {
     }
 
     scatter(ray: Ray, hit: HitInfo): Scatter {
-        let dir = hit.normal.add(Vec3.random_in_hemisphere(hit.normal));
+        let dir = Vec3.random_in_hemisphere_cosine(hit.normal);
 
         const eps = 1e-4;
         const origin = hit.point.add(hit.normal.mul(eps));

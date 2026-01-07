@@ -70,7 +70,11 @@ export class Vec3 {
 
     near_zero() {
         const eps = 1e-4;
-        return this.x < eps && this.y < eps && this.z < eps;
+        return Math.abs(this.x) < eps && Math.abs(this.y) < eps && Math.abs(this.z) < eps;
+    }
+
+    clamp01(): Vec3 {
+        return new Vec3(Math.max(0.0, Math.min(1.0, this.x)), Math.max(0.0, Math.min(1.0, this.y)), Math.max(0.0, Math.min(1.0, this.z)));
     }
 
     static lerp(a: Vec3, b: Vec3, t: number): Vec3 {
@@ -97,20 +101,44 @@ export class Vec3 {
     }
 
     static random(): Vec3 {
-        return new Vec3(Random.rand(), Random.rand(), Random.rand());
+        return new Vec3(Random.rand_range(-1, 1), Random.rand_range(-1, 1), Random.rand_range(-1, 1));
+    }
+
+    static random_in_unit_sphere(): Vec3 {
+        while (true) {
+            const p = this.random();
+            const mag2 = p.sqr_mag();
+            if (mag2 === 0.0 || mag2 >= 1.0) continue;
+            return p;
+        }
     }
 
     static random_unit_vector(): Vec3 {
-        return this.random().normalize();
+        return this.random_in_unit_sphere().normalize();
     }
 
     static random_in_hemisphere(normal: Vec3): Vec3 {
-        const v = this.random_unit_vector();
+        const v = this.random_in_unit_sphere();
         return v.dot(normal) > 0.0 ? v : v.mul(-1.0);
     }
 
-    clamp01(): Vec3 {
-        return new Vec3(Math.max(0.0, Math.min(1.0, this.x)), Math.max(0.0, Math.min(1.0, this.y)), Math.max(0.0, Math.min(1.0, this.z)));
+    static random_cosine_direction(): Vec3 {
+        const r1 = Random.rand();
+        const r2 = Random.rand();
+        const z = Math.sqrt(1.0 - r2);
+        const phi = 2.0 * Math.PI * r1;
+        const x = Math.cos(phi) * Math.sqrt(r2);
+        const y = Math.sin(phi) * Math.sqrt(r2);
+        return new Vec3(x, y, z);
+    }
+
+    static random_in_hemisphere_cosine(normal: Vec3): Vec3 {
+        const w = normal.normalize();
+        const a = Math.abs(w.x) > 0.9 ? new Vec3(0, 1, 0) : new Vec3(1, 0, 0);
+        const v = w.cross(a).normalize();
+        const u = v.cross(w);
+        const d = this.random_cosine_direction();
+        return u.mul(d.x).add(v.mul(d.y)).add(w.mul(d.z));
     }
 }
 

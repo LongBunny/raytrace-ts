@@ -18,8 +18,7 @@ let bounces = 10;
 let samples = 10;
 
 
-let done = false;
-
+let done = false;3
 function render_gen() {
     return render();
 }
@@ -59,11 +58,11 @@ const scene = new Scene(
     [
         // new Sphere(new Vec3(0.0, 201.0, 5.0), 200.0, new Material(new Vec3(1.0, 1.0, 1.0), Vec3.zero())), // "ground"
 
-        new Sphere(new Vec3(-4.0, 0.0, 5.0), 1.0, new Material(new Vec3(1.0, 0.0, 0.0))),
-        new Sphere(new Vec3(-2.0, 0.0, 5.0), 1.0, new Material(new Vec3(0.0, 1.0, 0.0))),
-        new Sphere(new Vec3(0.0, 0.0, 5.0), 1.0, new Material(new Vec3(0.0, 0.0, 1.0))),
-        new Sphere(new Vec3(2.0, 0.0, 5.0), 1.0, new Material(new Vec3(1.0, 1.0, 0.0))),
-        new Sphere(new Vec3(4.0, 0.0, 5.0), 1.0, new Material(new Vec3(0.0, 1.0, 1.0))),
+        new Sphere(new Vec3(-4.0, 0.0, 3.0), 1.0, new Material(new Vec3(1.0, 0.0, 0.0))),
+        new Sphere(new Vec3(-2.0, 0.0, 3.0), 1.0, new Material(new Vec3(0.0, 1.0, 0.0))),
+        new Sphere(new Vec3(0.0, 0.0, 3.0), 1.0, new Material(new Vec3(0.0, 0.0, 1.0))),
+        new Sphere(new Vec3(2.0, 0.0, 3.0), 1.0, new Material(new Vec3(1.0, 1.0, 0.0))),
+        new Sphere(new Vec3(4.0, 0.0, 3.0), 1.0, new Material(new Vec3(0.0, 1.0, 1.0))),
 
 
         // new Sphere(new Vec3(100.0, -150.0, 300.0), 75.0, new Material(Vec3.zero())), // "sun"
