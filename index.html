@@ -5,69 +5,60 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fira+Sans:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap"
       rel="stylesheet">
-<style>
-
-    * {
-        box-sizing: border-box;
-        font-family: 'Fira Sans', sans-serif;
-        color: #FFFFFF;
-    }
-
-    button {
-        color: #202020;
-    }
-
-    html,
-    body {
-        padding: 0;
-        margin: 0;
-        background: #202020;
-    }
-
-    .controls {
-        display: flex;
-        flex-direction: column;
-
-        .control_block {
-            margin: 10px;
-
-            .label {
-                width: 200px;
-            }
-
-            .slider_ctrl {
-                display: flex;
-                align-items: center;
-
-                input[type=range] {
-                    margin-left: 10px;
-                }
-            }
-        }
-    }
-</style>
+<link rel="stylesheet" href="./index.css">
 
 <body>
-<canvas id="canvas" width="800" height="600"></canvas>
-<div class="controls">
-    <div class="control_block">
-        <button id="render_btn">render</button>
-        <button onclick="download()">save</button>
-    </div>
 
-    <div class="control_block">
-        <div class="slider_ctrl">
-            <span class="label">Bounces:&nbsp;</span>
-            <span style="width: 20px;" id="bounces_value">10</span>
-            <input type="range" id="bounces_input" min="1" max="100" value="10">
+<div class="renderer">
+    <div class="wrap">
+        <canvas id="render_canvas" width="800" height="600"></canvas>
+        <canvas id="debug_canvas" width="800" height="600"></canvas>
+    </div>
+</div>
+
+<div class="info">
+    <div class="info_container controls">
+        <div class="control_block">
+            <button id="render_btn">render</button>
+            <button onclick="download()">save</button>
+        </div>
+
+        <div class="control_block">
+            <div class="ctrl">
+                <span class="label">Bounces:&nbsp;</span>
+                <span style="width: 20px;" id="bounces_value">10</span>
+                <input type="range" id="bounces_input" min="1" max="100" value="10">
+            </div>
+        </div>
+
+        <div class="control_block">
+            <div class="ctrl">
+                <span class="label">Samples per pixels:&nbsp;</span>
+                <span style="width: 20px;" id="samples_value">10</span>
+                <input type="range" id="samples_input" min="1" max="100" value="10">
+            </div>
+        </div>
+
+        <div class="control_block">
+            <div class="ctrl">
+                <span class="label">Debug</span>
+                <input type="checkbox" id="debug_checkbox">
+            </div>
         </div>
     </div>
 
-    <div class="control_block">
-        <div class="slider_ctrl">
-            <span class="label">Samples per pixels:&nbsp;</span>
-            <span style="width: 20px;" id="samples_value">10</span>
-            <input type="range" id="samples_input" min="1" max="100" value="10">
+    <div class="info_container data">
+        <div class="ctrl">
+            <div class="label">Accumulated frames:&nbsp;</div>
+            <span id="accum_frame_span"></span>
+        </div>
+        <div class="ctrl">
+            <div class="label">Last frame time:&nbsp;</div>
+            <span id="last_render_time_span"></span>
+        </div>
+        <div class="ctrl">
+            <div class="label">Average frame time:&nbsp;</div>
+            <span id="average_render_time_span"></span>
         </div>
     </div>
 </div>
