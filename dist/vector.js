@@ -47,6 +47,10 @@ export class Vec3 {
     reflect(a) {
         return this.sub(a.mul(2 * this.dot(a)));
     }
+    near_zero() {
+        const eps = 1e-4;
+        return this.x < eps && this.y < eps && this.z < eps;
+    }
     static lerp(a, b, t) {
         return new Vec3(BMath.lerp(a.x, b.x, t), BMath.lerp(a.y, b.y, t), BMath.lerp(a.z, b.z, t));
     }
@@ -65,7 +69,14 @@ export class Vec3 {
     static random() {
         return new Vec3(Random.rand(), Random.rand(), Random.rand());
     }
-    static from_unit_sphere() {
+    static random_unit_vector() {
         return this.random().normalize();
+    }
+    static random_in_hemisphere(normal) {
+        const v = this.random_unit_vector();
+        return v.dot(normal) > 0.0 ? v : v.mul(-1.0);
+    }
+    clamp01() {
+        return new Vec3(Math.max(0.0, Math.min(1.0, this.x)), Math.max(0.0, Math.min(1.0, this.y)), Math.max(0.0, Math.min(1.0, this.z)));
     }
 }
