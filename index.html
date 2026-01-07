@@ -41,6 +41,13 @@
 
         <div class="control_block">
             <div class="ctrl">
+                <span class="label">Gamma correction</span>
+                <input type="checkbox" id="gamma_checkbox">
+            </div>
+        </div>
+
+        <div class="control_block">
+            <div class="ctrl">
                 <span class="label">Debug</span>
                 <input type="checkbox" id="debug_checkbox">
             </div>
@@ -74,7 +81,7 @@
     function download() {
         const link = document.createElement('a');
         link.download = 'render.png';
-        link.href = canvas.toDataURL();
+        link.href = render_canvas.toDataURL();
         link.click();
     }
 </script>

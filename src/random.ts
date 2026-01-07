@@ -4,7 +4,7 @@ export class Random {
         return Math.random();
     }
 
-    static rand_range(min: number, max: number): number {
+    static range(min: number, max: number): number {
         return min + (max - min) * this.rand();
     }
 }

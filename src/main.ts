@@ -2,7 +2,7 @@ import {Vec3} from './vector.js';
 import {Sphere} from './shape.js';
 import {Scene} from './scene.js';
 import {Material} from "./material.js";
-import {path_trace} from "./pathtracer.js";
+import {path_trace, RenderSettings} from "./pathtracer.js";
 import {Camera} from "./camera.js";
 
 const render_canvas = document.getElementById('render_canvas') as HTMLCanvasElement;
@@ -24,14 +24,13 @@ ctx.clearRect(0, 0, WIDTH, HEIGHT);
 const imageData = ctx.createImageData(WIDTH, HEIGHT);
 
 let frame_sample_count = 1;
-const accumulate_buffer = new Float32Array(WIDTH * HEIGHT * 3);
+const accumulate_buffer = new Array<Vec3>(WIDTH * HEIGHT);
+reset_accumulate_buffer();
 const pixels = imageData.data;
 
-let bounces = 10;
-let samples = 10;
+const render_settings = RenderSettings.default();
 
 const camera = new Camera(90, WIDTH / HEIGHT);
-
 
 function render_gen() {
     return render();
@@ -48,11 +47,17 @@ addEventListener('keydown', (evt: KeyboardEvent) => {
 
 function re_render() {
     reset_ui();
-    accumulate_buffer.fill(0.0);
+    reset_accumulate_buffer();
     frame_sample_count = 1;
     pixels.fill(0.0);
     ctx.clearRect(0, 0, WIDTH, HEIGHT);
     gen = render_gen();
+}
+
+function reset_accumulate_buffer() {
+    for (let i = 0; i < WIDTH * HEIGHT; i++) {
+        accumulate_buffer[i] = new Vec3(0.0, 0.0, 0.0);
+    }
 }
 
 function draw() {
@@ -100,7 +105,7 @@ const scene = new Scene(
 );
 
 function* render() {
-    console.log(`rendering: bounces = ${bounces}, samples = ${samples}`);
+    console.log(`rendering: bounces = ${render_settings.bounces}, samples = ${render_settings.samples}`);
     while (true) {
         const start = performance.now();
         for (let y = 0; y < HEIGHT; y++) {
@@ -111,25 +116,39 @@ function* render() {
             for (let x = 0; x < WIDTH; x++) {
                 const i = (y * WIDTH + x);
 
-                const color = path_trace(x, y, WIDTH, HEIGHT, camera, scene, bounces, samples);
-                const accumulate_idx = i * 3;
-                accumulate_buffer[accumulate_idx + 0] += color.x;
-                accumulate_buffer[accumulate_idx + 1] += color.y;
-                accumulate_buffer[accumulate_idx + 2] += color.z;
+                const color = path_trace(x, y, WIDTH, HEIGHT, camera, scene, render_settings);
 
-                const r = accumulate_buffer[accumulate_idx + 0] / frame_sample_count;
-                const g = accumulate_buffer[accumulate_idx + 1] / frame_sample_count;
-                const b = accumulate_buffer[accumulate_idx + 2] / frame_sample_count;
+                accumulate_buffer[i] = accumulate_buffer[i].add(color);
+                let out_color = accumulate_buffer[i].div(frame_sample_count);
+
+                if (debug) {
+                    // debug middle pixel
+                    if (x === Math.floor(x / WIDTH) && y === Math.floor(y / HEIGHT))
+                        console.log(`sample: ${frame_sample_count}, color: ${out_color}`)
+                }
+
+                if (render_settings.gamma_correction) {
+                    const inverse = 1.0 / 2.2;
+                    out_color = new Vec3(
+                        Math.pow(out_color.x, inverse),
+                        Math.pow(out_color.y, inverse),
+                        Math.pow(out_color.z, inverse)
+                    );
+                }
+
+                out_color = out_color.clamp01();
 
                 const pixels_idx = i * 4;
-                pixels[pixels_idx + 0] = r * 255;
-                pixels[pixels_idx + 1] = g * 255;
-                pixels[pixels_idx + 2] = b * 255;
+                pixels[pixels_idx + 0] = out_color.x * 255;
+                pixels[pixels_idx + 1] = out_color.y * 255;
+                pixels[pixels_idx + 2] = out_color.z * 255;
                 pixels[pixels_idx + 3] = 255;
 
                 yield;
             }
         }
+
+
         frame_done = true;
         frame_sample_count += 1;
 
@@ -151,12 +170,20 @@ const bounces_value = document.getElementById('bounces_value') as HTMLSpanElemen
 const samples_input = document.getElementById('samples_input') as HTMLInputElement;
 const samples_value = document.getElementById('samples_value') as HTMLSpanElement;
 
+const gamma_checkbox = document.getElementById('gamma_checkbox') as HTMLInputElement;
+
 const debug_checkbox = document.getElementById('debug_checkbox') as HTMLInputElement;
 
 const accum_frame_span = document.getElementById('accum_frame_span') as HTMLSpanElement;
 const last_render_time_span = document.getElementById('last_render_time_span') as HTMLSpanElement;
 const average_render_time_span = document.getElementById('average_render_time_span') as HTMLSpanElement;
 const total_render_time_span = document.getElementById('total_render_time_span') as HTMLSpanElement;
+
+gamma_checkbox.addEventListener('change', () => {
+    render_settings.gamma_correction = gamma_checkbox.checked;
+    re_render();
+});
+
 
 debug_checkbox.addEventListener('change', () => {
     debug = debug_checkbox.checked;
@@ -166,13 +193,13 @@ debug_checkbox.addEventListener('change', () => {
 render_btn.addEventListener('click', re_render);
 
 bounces_input.addEventListener('change', () => {
-    bounces = parseInt(bounces_input.value);
+    render_settings.bounces = parseInt(bounces_input.value);
     re_render();
 });
 bounces_input.addEventListener('input', () => bounces_value.innerText = bounces_input.value);
 
 samples_input.addEventListener('change', () => {
-    samples = parseInt(samples_input.value);
+    render_settings.samples = parseInt(samples_input.value);
     re_render();
 });
 samples_input.addEventListener('input', () => samples_value.innerText = samples_input.value);
@@ -181,12 +208,13 @@ samples_input.addEventListener('input', () => samples_value.innerText = samples_
 reset_ui();
 
 function reset_ui() {
+    gamma_checkbox.checked = render_settings.gamma_correction;
     debug_checkbox.checked = debug;
 
-    bounces_input.value = '' + bounces;
+    bounces_input.value = '' + render_settings.bounces;
     bounces_value.innerText = bounces_input.value;
 
-    samples_input.value = '' + samples;
+    samples_input.value = '' + render_settings.samples;
     samples_value.innerText = samples_input.value;
 
     frame_time_sum = 0.0;

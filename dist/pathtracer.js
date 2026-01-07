@@ -1,15 +1,25 @@
 import { Vec3 } from "./vector.js";
-export function path_trace(x, y, width, height, camera, scene, bounces = 10, samples = 10) {
+import { Random } from "./random.js";
+export class RenderSettings {
+    constructor(bounces, samples, gamma_correction) {
+        this.bounces = bounces;
+        this.samples = samples;
+        this.gamma_correction = gamma_correction;
+    }
+    static default() {
+        return new RenderSettings(10, 10, true);
+    }
+}
+export function path_trace(x, y, width, height, camera, scene, render_settings) {
     let color = Vec3.zero();
-    for (let s = 0; s < samples; s++) {
-        const u = (x + 0.5) / width;
-        const v = (y + 0.5) / height;
+    for (let s = 0; s < render_settings.samples; s++) {
+        const u = (x + Random.rand()) / width;
+        const v = (y + Random.rand()) / height;
         const ray = camera.get_ray(u, v);
-        color = color.add(radiance(scene, ray, bounces));
+        color = color.add(radiance(scene, ray, render_settings.bounces));
     }
     // color = debug_normal(scene, ray);
-    color = color.mul(1 / samples);
-    color = color.clamp01();
+    color = color.mul(1 / render_settings.samples);
     return color;
 }
 function debug_normal(scene, ray) {
@@ -32,7 +42,14 @@ function radiance(scene, ray, depth) {
     return background(ray);
 }
 function background(ray) {
-    const unit = ray.dir.normalize();
-    const t = 0.5 * (unit.y + 1.0);
-    return Vec3.lerp(Vec3.one(), new Vec3(0.5, 0.7, 1.0), t);
+    const d = ray.dir.normalize();
+    const sun_dir = new Vec3(0.3, 0.4, 0.6).normalize();
+    const sun_amt = Math.max(0, d.dot(sun_dir));
+    const sky_amt = Math.max(0, d.y);
+    const sky_col = new Vec3(0.2, 0.45, 0.9);
+    const horizon_col = new Vec3(0.8, 0.6, 0.4);
+    const sun_col = new Vec3(1.0, 0.9, 0.6);
+    let col = Vec3.lerp(horizon_col, sky_col, Math.pow(sky_amt, 0.5));
+    col = col.add(sun_col.mul(Math.pow(sun_amt, 64)));
+    return col;
 }

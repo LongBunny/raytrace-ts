@@ -8,7 +8,7 @@ export class Camera {
         const viewport_width = aspect * viewport_height;
         this.origin = new Vec3(0, 0, 0);
         this.horizontal = new Vec3(viewport_width, 0, 0);
-        this.vertical = new Vec3(0, viewport_height, 0);
+        this.vertical = new Vec3(0, -viewport_height, 0);
         this.lower_left_corner = this.origin
             .sub(this.horizontal.mul(0.5))
             .sub(this.vertical.mul(0.5))

@@ -54,6 +54,9 @@ export class Vec3 {
     clamp01() {
         return new Vec3(Math.max(0.0, Math.min(1.0, this.x)), Math.max(0.0, Math.min(1.0, this.y)), Math.max(0.0, Math.min(1.0, this.z)));
     }
+    srgb_to_linear() {
+        return new Vec3(BMath.srgb_to_linear(this.x), BMath.srgb_to_linear(this.y), BMath.srgb_to_linear(this.z));
+    }
     static lerp(a, b, t) {
         return new Vec3(BMath.lerp(a.x, b.x, t), BMath.lerp(a.y, b.y, t), BMath.lerp(a.z, b.z, t));
     }
@@ -70,7 +73,7 @@ export class Vec3 {
         return new Vec3(r, g, b);
     }
     static random() {
-        return new Vec3(Random.rand_range(-1, 1), Random.rand_range(-1, 1), Random.rand_range(-1, 1));
+        return new Vec3(Random.range(-1, 1), Random.range(-1, 1), Random.range(-1, 1));
     }
     static random_in_unit_sphere() {
         while (true) {
@@ -104,5 +107,8 @@ export class Vec3 {
         const u = v.cross(w);
         const d = this.random_cosine_direction();
         return u.mul(d.x).add(v.mul(d.y)).add(w.mul(d.z));
+    }
+    toString() {
+        return `(${this.x}, ${this.y}, ${this.z})`;
     }
 }
