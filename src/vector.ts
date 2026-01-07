@@ -1,4 +1,5 @@
-import { BMath } from "./bmath.js";
+import {BMath} from "./bmath.js";
+import {Random} from "./random.js";
 
 export class Vec3 {
     x: number;
@@ -88,6 +89,14 @@ export class Vec3 {
         const g = ((hex >> 8 * 1) & 0xFF) / 255.0;
         const b = ((hex >> 8 * 0) & 0xFF) / 255.0;
         return new Vec3(r, g, b);
+    }
+
+    static random(): Vec3 {
+        return new Vec3(Random.rand(), Random.rand(), Random.rand());
+    }
+
+    static from_unit_sphere(): Vec3 {
+        return this.random().normalize();
     }
 }
 
