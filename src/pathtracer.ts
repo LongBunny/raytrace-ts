@@ -3,7 +3,7 @@ import {Ray} from "./ray.js";
 import {Vec3} from "./vector.js";
 import {Camera} from "./camera.js";
 import {Random} from "./random.js";
-import {BMath} from "./bmath";
+import {Dielectric} from "./material.js";
 
 export class RenderSettings {
     bounces: number;
@@ -18,7 +18,7 @@ export class RenderSettings {
 
     static default(): RenderSettings {
         return new RenderSettings(
-            10,
+            20,
             10,
             true
         );
@@ -33,7 +33,7 @@ export function path_trace(x: number, y: number, width: number, height: number, 
         const u = (x + Random.rand()) / width;
         const v = (y + Random.rand()) / height;
         const ray = camera.get_ray(u, v);
-        color = color.add(radiance(scene, ray, render_settings.bounces));
+        color = color.add(radiance(scene, ray, render_settings.bounces, render_settings));
     }
     // color = debug_normal(scene, ray);
 
@@ -51,27 +51,29 @@ function debug_normal(scene: Scene, ray: Ray): Vec3 {
     }
 }
 
-function radiance(scene: Scene, ray: Ray, depth: number): Vec3 {
+function radiance(scene: Scene, ray: Ray, depth: number, render_settings: RenderSettings): Vec3 {
     if (depth <= 0) return Vec3.zero();
 
     const hit = scene.hit(ray);
     if (!hit)
         return background(ray);
 
+    if (depth < render_settings.bounces - 5 && hit.material instanceof Dielectric) return Vec3.zero();
+
     const emitted = hit.material.emitted(hit);
     const scatter = hit.material.scatter(ray, hit);
     if (!scatter) return emitted;
 
     return emitted.add(
-        scatter.attenuation.mul_vec(radiance(scene, scatter.ray, depth - 1))
+        scatter.attenuation.mul_vec(radiance(scene, scatter.ray, depth - 1, render_settings))
     );
 }
 
 function background(ray: Ray): Vec3 {
-    return Vec3.zero();
+    // return Vec3.zero();
 
     const d = ray.dir.normalize();
-    const sun_dir = new Vec3(0.3, 0.9, 0.6).normalize();
+    const sun_dir = new Vec3(0.3, 0.3, 0.6).normalize();
 
     const sun_amt = Math.max(0, d.dot(sun_dir));
     const sky_amt = Math.max(0, d.y);

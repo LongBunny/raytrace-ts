@@ -1,5 +1,6 @@
 import { Vec3 } from "./vector.js";
 import { Random } from "./random.js";
+import { Dielectric } from "./material.js";
 export class RenderSettings {
     constructor(bounces, samples, gamma_correction) {
         this.bounces = bounces;
@@ -7,7 +8,7 @@ export class RenderSettings {
         this.gamma_correction = gamma_correction;
     }
     static default() {
-        return new RenderSettings(10, 10, true);
+        return new RenderSettings(20, 10, true);
     }
 }
 export function path_trace(x, y, width, height, camera, scene, render_settings) {
@@ -16,7 +17,7 @@ export function path_trace(x, y, width, height, camera, scene, render_settings) 
         const u = (x + Random.rand()) / width;
         const v = (y + Random.rand()) / height;
         const ray = camera.get_ray(u, v);
-        color = color.add(radiance(scene, ray, render_settings.bounces));
+        color = color.add(radiance(scene, ray, render_settings.bounces, render_settings));
     }
     // color = debug_normal(scene, ray);
     color = color.mul(1 / render_settings.samples);
@@ -31,22 +32,24 @@ function debug_normal(scene, ray) {
         return background(ray);
     }
 }
-function radiance(scene, ray, depth) {
+function radiance(scene, ray, depth, render_settings) {
     if (depth <= 0)
         return Vec3.zero();
     const hit = scene.hit(ray);
     if (!hit)
         return background(ray);
+    if (depth < render_settings.bounces - 5 && hit.material instanceof Dielectric)
+        return Vec3.zero();
     const emitted = hit.material.emitted(hit);
     const scatter = hit.material.scatter(ray, hit);
     if (!scatter)
         return emitted;
-    return emitted.add(scatter.attenuation.mul_vec(radiance(scene, scatter.ray, depth - 1)));
+    return emitted.add(scatter.attenuation.mul_vec(radiance(scene, scatter.ray, depth - 1, render_settings)));
 }
 function background(ray) {
-    return Vec3.zero();
+    // return Vec3.zero();
     const d = ray.dir.normalize();
-    const sun_dir = new Vec3(0.3, 0.9, 0.6).normalize();
+    const sun_dir = new Vec3(0.3, 0.3, 0.6).normalize();
     const sun_amt = Math.max(0, d.dot(sun_dir));
     const sky_amt = Math.max(0, d.y);
     const sky_col = new Vec3(0.2, 0.45, 0.9);

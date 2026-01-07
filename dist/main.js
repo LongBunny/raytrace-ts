@@ -1,7 +1,7 @@
 import { Vec3 } from './vector.js';
 import { Sphere } from './shape.js';
 import { Scene } from './scene.js';
-import { Lambertian, DiffuseLight, Metal } from "./material.js";
+import { Lambertian, Metal, Dielectric } from "./material.js";
 import { path_trace, RenderSettings } from "./pathtracer.js";
 import { Camera } from "./camera.js";
 const render_canvas = document.getElementById('render_canvas');
@@ -69,13 +69,17 @@ function draw() {
     requestAnimationFrame(draw);
 }
 const scene = new Scene([
-    new Sphere(new Vec3(0.0, -201.0, 3.0), 200.0, new Lambertian(new Vec3(1.0, 1.0, 1.0))),
-    new Sphere(new Vec3(-4.0, 0.0, 3.0), 1.0, new Lambertian(new Vec3(0.0, 1.0, 0.0))),
-    new Sphere(new Vec3(-2.0, 0.0, 3.0), 1.0, new Metal(Vec3.from_hex(0x61666A), 1)),
-    new Sphere(new Vec3(0.0, 0.0, 3.0), 1.0, new Lambertian(new Vec3(0.0, 0.0, 1.0))),
-    new Sphere(new Vec3(2.0, 0.0, 3.0), 1.0, new Metal(Vec3.from_hex(0x61666A), 0.1)),
-    new Sphere(new Vec3(4.0, 0.0, 3.0), 1.0, new Lambertian(new Vec3(1.0, 1.0, 0.0))),
-    new Sphere(new Vec3(0.0, 5.0, 3.0), 2.0, new DiffuseLight(new Vec3(1.0, 1.0, 1.0))),
+    new Sphere(new Vec3(0.0, -202.0, 1.0), 200.0, new Lambertian(new Vec3(1.0, 1.0, 1.0))),
+    // new Sphere(new Vec3(0.0, 4.5, 5.0), 2.0, new Lambertian(new Vec3(1.0, 1.0, 1.0))),
+    // new Sphere(new Vec3(-2.0, -1.0, 4.0), 1.0, new Metal(Vec3.from_hex(0x61666A), 1)),
+    new Sphere(new Vec3(0.0, 0.0, 2.0), 1.0, new Dielectric(1.5)),
+    // new Sphere(new Vec3(1.0, 0.0, 4.0), 1.0, new Dielectric(1.52)),
+    // new Sphere(new Vec3(-1.0, 0.0, 4.0), 1.0, new Dielectric(1.52)),
+    new Sphere(new Vec3(1.0, -1.0, 3.0), 0.8, new Lambertian(new Vec3(1.0, 0.0, 0.0))),
+    new Sphere(new Vec3(-1.0, -1.0, 3.0), 1.5, new Metal(Vec3.from_hex(0xCCAC10), 0.2)),
+    // new Sphere(new Vec3(2.0, -1.0, 4.0), 1.0, new Metal(Vec3.from_hex(0x61666A), 0.1)),
+    // new Sphere(new Vec3(4.0, -1.0, 5.0), 1.0, new Lambertian(new Vec3(1.0, 1.0, 0.0))),
+    // new Sphere(new Vec3(0.0, 8.0, 3.0), 2.0, new DiffuseLight(new Vec3(1.0, 1.0, 1.0))),
 ]);
 function* render() {
     console.log(`rendering: bounces = ${render_settings.bounces}, samples = ${render_settings.samples}`);

@@ -44,8 +44,15 @@ export class Vec3 {
     normalize() {
         return this.div(this.mag());
     }
-    reflect(a) {
-        return this.sub(a.mul(2 * this.dot(a)));
+    reflect(n) {
+        return this.sub(n.mul(2 * this.dot(n)));
+    }
+    refract(n, etai_over_etat) {
+        const uv = this.normalize();
+        const cos_theta = Math.min(uv.mul(-1).dot(n), 1.0);
+        const out_perpendicular = uv.add(n.mul(cos_theta)).mul(etai_over_etat);
+        const out_parallel = n.mul(-Math.sqrt(Math.abs(1.0 - out_perpendicular.sqr_mag())));
+        return out_perpendicular.add(out_parallel);
     }
     near_zero() {
         const eps = 1e-4;
