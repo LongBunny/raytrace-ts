@@ -3,6 +3,7 @@ import { Sphere } from './shape.js';
 import { Scene } from './scene.js';
 import { Material } from "./material.js";
 import { path_trace } from "./pathtracer.js";
+import { Camera } from "./camera.js";
 const render_canvas = document.getElementById('render_canvas');
 const debug_canvas = document.getElementById('debug_canvas');
 const ctx = render_canvas.getContext('2d');
@@ -21,6 +22,7 @@ const accumulate_buffer = new Float32Array(WIDTH * HEIGHT * 3);
 const pixels = imageData.data;
 let bounces = 10;
 let samples = 10;
+const camera = new Camera(90, WIDTH / HEIGHT);
 function render_gen() {
     return render();
 }
@@ -80,7 +82,7 @@ function* render() {
             }
             for (let x = 0; x < WIDTH; x++) {
                 const i = (y * WIDTH + x);
-                const color = path_trace(x, y, WIDTH, HEIGHT, scene, bounces, samples);
+                const color = path_trace(x, y, WIDTH, HEIGHT, camera, scene, bounces, samples);
                 const accumulate_idx = i * 3;
                 accumulate_buffer[accumulate_idx + 0] += color.x;
                 accumulate_buffer[accumulate_idx + 1] += color.y;
@@ -114,16 +116,10 @@ const accum_frame_span = document.getElementById('accum_frame_span');
 const last_render_time_span = document.getElementById('last_render_time_span');
 const average_render_time_span = document.getElementById('average_render_time_span');
 const total_render_time_span = document.getElementById('total_render_time_span');
-debug_checkbox.checked = debug;
 debug_checkbox.addEventListener('change', () => {
     debug = debug_checkbox.checked;
     debug_ctx.clearRect(0, 0, WIDTH, HEIGHT);
 });
-bounces_input.value = '' + bounces;
-bounces_value.innerText = bounces_input.value;
-samples_input.value = '' + samples;
-samples_value.innerText = samples_input.value;
-reset_ui();
 render_btn.addEventListener('click', re_render);
 bounces_input.addEventListener('change', () => {
     bounces = parseInt(bounces_input.value);
@@ -135,7 +131,13 @@ samples_input.addEventListener('change', () => {
     re_render();
 });
 samples_input.addEventListener('input', () => samples_value.innerText = samples_input.value);
+reset_ui();
 function reset_ui() {
+    debug_checkbox.checked = debug;
+    bounces_input.value = '' + bounces;
+    bounces_value.innerText = bounces_input.value;
+    samples_input.value = '' + samples;
+    samples_value.innerText = samples_input.value;
     frame_time_sum = 0.0;
     accum_frame_span.innerText = `0`;
     last_render_time_span.innerText = `-`;

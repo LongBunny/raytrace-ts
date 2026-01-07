@@ -1,14 +1,10 @@
-import { Ray } from "./ray.js";
 import { Vec3 } from "./vector.js";
-export function path_trace(x, y, width, height, scene, bounces = 10, samples = 10) {
+export function path_trace(x, y, width, height, camera, scene, bounces = 10, samples = 10) {
     let color = Vec3.zero();
     for (let s = 0; s < samples; s++) {
         const u = (x + 0.5) / width;
         const v = (y + 0.5) / height;
-        const aspect = width / height;
-        const px = (2 * u - 1) * aspect;
-        const py = 1 - 2 * v;
-        const ray = new Ray(new Vec3(0, 0, 0), new Vec3(px, py, 1).normalize());
+        const ray = camera.get_ray(u, v);
         color = color.add(radiance(scene, ray, bounces));
     }
     // color = debug_normal(scene, ray);
