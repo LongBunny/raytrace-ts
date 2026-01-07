@@ -40,9 +40,12 @@ export class Sphere implements Shape {
         else if (t2 > eps) t = t2;
         else return null;
 
-        const point = ray.origin.add(ray.dir.mul(t));
-        const normal = point.sub(this.pos).mul(1.0 / this.r);
+        const hit_point = ray.origin.add(ray.dir.mul(t));
+        const hit_normal = hit_point.sub(this.pos).mul(1.0 / this.r).normalize();
 
-        return new HitInfo(t, point, normal, this.material);
+        const front_face = ray.dir.dot(hit_normal) < 0;
+        const normal = front_face ? hit_normal : hit_normal.mul(-1.0);
+
+        return new HitInfo(t, hit_point, normal, front_face, this.material);
     };
 }

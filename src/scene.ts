@@ -1,6 +1,7 @@
-import { Ray } from './ray.js';
-import { Shape } from './shape.js';
-import { Vec3 } from './vector.js';
+import {Ray} from './ray.js';
+import {Shape} from './shape.js';
+import {Vec3} from './vector.js';
+import {HitInfo} from "./hitinfo.js";
 
 export class Scene {
     shapes: Shape[];
@@ -9,12 +10,19 @@ export class Scene {
         this.shapes = shapes;
     }
 
-    get_env(ray: Ray): Vec3 {
-        const upness = new Vec3(0.0, 1.0, 0.0).dot(ray.dir);
-        const upness_sq = upness * upness;
-        let sky = Vec3.lerp(Vec3.from_hex(0x90A3ED), Vec3.from_hex(0xF7F7F9), upness_sq);
-        let ground = Vec3.lerp(Vec3.from_hex(0xF7F7F9), Vec3.from_hex(0x626262), upness_sq);
-        return Vec3.lerp(sky, ground, (upness + 1.0) * 0.5);
+    hit(ray: Ray, t_min: number = 1e-4, t_max: number = Number.POSITIVE_INFINITY): HitInfo | null {
+        let closest = t_max;
+        let best: HitInfo | null = null;
+
+        for (const shape of this.shapes) {
+            const hit = shape.intersects(ray);
+            if (hit && hit.distance > t_min && hit.distance < closest) {
+                closest = hit.distance;
+                best = hit;
+            }
+        }
+
+        return best;
     }
 }
 
