@@ -20,14 +20,14 @@ export class Ray {
         let hit_dist = Number.POSITIVE_INFINITY;
         let hit_info: HitInfo | null = null;
         for (let shape of scene.shapes) {
-            let hit_info = shape.intersects(this, scene.sun);
-            if (hit_info === null)
+            const new_hit_info = shape.intersects(this);
+            if (new_hit_info === null)
                 continue;
 
-            if (hit_info.distance < hit_dist) {
-                hit_dist = hit_info.distance;
-                color = hit_info.color;
-                hit_info = hit_info;
+            if (new_hit_info.distance < hit_dist) {
+                hit_dist = new_hit_info.distance;
+                color = new_hit_info.color;
+                hit_info = new_hit_info;
             }
         }
 
@@ -36,10 +36,11 @@ export class Ray {
         }
 
         if (hit_info !== null) {
-            const info = hit_info as HitInfo;
-            const new_ray = new Ray(info.point, this.dir.reflect(info.normal));
+            const eps = 1e-4;
+            const origin = hit_info.point.add(hit_info.normal.mul(eps));
+            const new_ray = new Ray(origin, this.dir.reflect(hit_info.normal));
             const new_col = new_ray.trace(scene, bounce - 1);
-            color.add(new_col);
+            color = color.add(new_col);
         }
 
         return color;

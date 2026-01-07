@@ -1,23 +1,24 @@
-import { Vec3 } from './vector.js';
-import { Ray } from './ray.js';
-import { HitInfo } from './hitinfo.js';
+import {Vec3} from './vector.js';
+import {Ray} from './ray.js';
+import {HitInfo} from './hitinfo.js';
+import {Material} from "./material.js";
 
 export interface Shape {
-    intersects(ray: Ray, sun: Vec3): HitInfo | null;
+    intersects(ray: Ray): HitInfo | null;
 }
 
 export class Sphere implements Shape {
     pos: Vec3;
     r: number;
-    color: Vec3;
+    material: Material;
 
-    constructor(pos: Vec3, r: number, color: Vec3) {
+    constructor(pos: Vec3, r: number, material: Material) {
         this.pos = pos;
         this.r = r;
-        this.color = color;
+        this.material = material;
     }
 
-    intersects(ray: Ray, sun: Vec3): HitInfo | null {
+    intersects(ray: Ray): HitInfo | null {
         const oc = ray.origin.sub(this.pos);
 
         const a = ray.dir.dot(ray.dir);
@@ -42,6 +43,6 @@ export class Sphere implements Shape {
         const point = ray.origin.add(ray.dir.mul(t));
         const normal = point.sub(this.pos).mul(1.0 / this.r);
 
-        return new HitInfo(t, point, normal, this.color);
+        return new HitInfo(t, point, normal, this.material.color.add(this.material.emissive));
     };
 }

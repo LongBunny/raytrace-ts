@@ -71,6 +71,14 @@ export class Vec3 {
         );
     }
 
+    static zero(): Vec3 {
+        return new Vec3(0.0, 0.0, 0.0);
+    }
+
+    static one(): Vec3 {
+        return new Vec3(1.0, 1.0, 1.0);
+    }
+
     static from_hex(hex: number): Vec3 {
         const r = ((hex >> 8 * 2) & 0xFF) / 255.0;
         const g = ((hex >> 8 * 1) & 0xFF) / 255.0;

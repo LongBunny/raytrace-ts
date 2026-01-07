@@ -1,8 +1,9 @@
-import { Vec3 } from './vector.js';
-import { Ray } from './ray.js';
-import { Sphere } from './shape.js';
-import { Scene } from './scene.js';
-import { BMath } from './bmath.js';
+import {Vec3} from './vector.js';
+import {Ray} from './ray.js';
+import {Sphere} from './shape.js';
+import {Scene} from './scene.js';
+import {BMath} from './bmath.js';
+import {Material} from "./material.js";
 
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
@@ -14,7 +15,7 @@ ctx.clearRect(0, 0, WIDTH, HEIGHT);
 const imageData = ctx.createImageData(WIDTH, HEIGHT);
 const pixels = imageData.data;
 
-const N = 10;
+const NUM_BOUNCES = 1;
 
 let done = false;
 
@@ -25,7 +26,7 @@ function render_gen() {
 let gen = render_gen();
 
 addEventListener('keydown', (evt: KeyboardEvent) => {
-    if (evt.key !== 'r')
+    if (evt.key !== 'r' || evt.ctrlKey)
         return;
 
     console.log('reload');
@@ -52,26 +53,35 @@ function draw() {
 
 const scene = new Scene(
     [
-        new Sphere(new Vec3(-1.0, 0.0, 10.0), 4.0, new Vec3(1.0, 0.0, 0.0)),
-        new Sphere(new Vec3(1.0, .0, 5.0), 2.0, new Vec3(0.0, 1.0, 0.0)),
+        new Sphere(new Vec3(0.0, 201.0, 5.0), 200.0, new Material(new Vec3(1.0, 1.0, 1.0), Vec3.zero())), // "ground"
+
+        new Sphere(new Vec3(-4.0, 0.0, 5.0), 1.0, new Material(new Vec3(1.0, 0.0, 0.0), Vec3.zero())),
+        new Sphere(new Vec3(-2.0, 0.0, 5.0), 1.0, new Material(new Vec3(0.0, 1.0, 0.0), Vec3.zero())),
+        new Sphere(new Vec3(0.0, 0.0, 5.0), 1.0, new Material(new Vec3(0.0, 0.0, 1.0), Vec3.zero())),
+        new Sphere(new Vec3(2.0, 0.0, 5.0), 1.0, new Material(new Vec3(1.0, 1.0, 0.0), Vec3.zero())),
+        new Sphere(new Vec3(4.0, 0.0, 5.0), 1.0, new Material(new Vec3(0.0, 1.0, 1.0), Vec3.zero())),
+
+
+        new Sphere(new Vec3(100.0, -150.0, 300.0), 75.0, new Material(Vec3.zero(), Vec3.one())), // "sun"
     ]
 );
 
 function* render() {
     for (let y = 0; y < HEIGHT; y++) {
         for (let x = 0; x < WIDTH; x++) {
-            const idx = (y * WIDTH + x) * 4;
+            const i = (y * WIDTH + x) * 4;
 
             const nx = x / WIDTH * 2 - 1;
             const ny = y / HEIGHT * 2 - 1;
-            const ray = new Ray(new Vec3(0, 0, 0), new Vec3(nx, ny, 1).normalize());
 
-            let color = ray.trace(scene, N);
-            color = color.div(N - 1);
-            pixels[idx + 0] = color.x * 255;
-            pixels[idx + 1] = color.y * 255;
-            pixels[idx + 2] = color.z * 255;
-            pixels[idx + 3] = 255;
+            const ray = new Ray(new Vec3(0, 0, 0), new Vec3(nx, ny, 1).normalize());
+            let color = ray.trace(scene, NUM_BOUNCES);
+            color = color.div(NUM_BOUNCES);
+
+            pixels[i + 0] = color.x * 255;
+            pixels[i + 1] = color.y * 255;
+            pixels[i + 2] = color.z * 255;
+            pixels[i + 3] = 255;
 
             yield;
         }

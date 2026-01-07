@@ -46,6 +46,12 @@ export class Vec3 {
     static lerp(a, b, t) {
         return new Vec3(BMath.lerp(a.x, b.x, t), BMath.lerp(a.y, b.y, t), BMath.lerp(a.z, b.z, t));
     }
+    static zero() {
+        return new Vec3(0.0, 0.0, 0.0);
+    }
+    static one() {
+        return new Vec3(1.0, 1.0, 1.0);
+    }
     static from_hex(hex) {
         const r = ((hex >> 8 * 2) & 0xFF) / 255.0;
         const g = ((hex >> 8 * 1) & 0xFF) / 255.0;

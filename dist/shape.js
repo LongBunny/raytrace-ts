@@ -1,11 +1,11 @@
 import { HitInfo } from './hitinfo.js';
 export class Sphere {
-    constructor(pos, r, color) {
+    constructor(pos, r, material) {
         this.pos = pos;
         this.r = r;
-        this.color = color;
+        this.material = material;
     }
-    intersects(ray, sun) {
+    intersects(ray) {
         const oc = ray.origin.sub(this.pos);
         const a = ray.dir.dot(ray.dir);
         const b = 2.0 * oc.dot(ray.dir);
@@ -26,7 +26,7 @@ export class Sphere {
             return null;
         const point = ray.origin.add(ray.dir.mul(t));
         const normal = point.sub(this.pos).mul(1.0 / this.r);
-        return new HitInfo(t, point, normal, this.color);
+        return new HitInfo(t, point, normal, this.material.color.add(this.material.emissive));
     }
     ;
 }
