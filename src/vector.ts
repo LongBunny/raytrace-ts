@@ -29,6 +29,10 @@ export class Vec3 {
         return new Vec3(this.x * val, this.y * val, this.z * val);
     }
 
+    mul_vec(other: Vec3): Vec3 {
+        return new Vec3(this.x * other.x, this.y * other.y, this.z * other.z);
+    }
+
     div(val: number): Vec3 {
         if (val === 0.0)
             throw new Error('Can\'t div by 0');

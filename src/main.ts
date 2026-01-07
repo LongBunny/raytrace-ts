@@ -15,7 +15,7 @@ ctx.clearRect(0, 0, WIDTH, HEIGHT);
 const imageData = ctx.createImageData(WIDTH, HEIGHT);
 const pixels = imageData.data;
 
-const NUM_BOUNCES = 1;
+const NUM_BOUNCES = 2;
 
 let done = false;
 
@@ -53,7 +53,7 @@ function draw() {
 
 const scene = new Scene(
     [
-        new Sphere(new Vec3(0.0, 201.0, 5.0), 200.0, new Material(new Vec3(1.0, 1.0, 1.0), Vec3.zero())), // "ground"
+        // new Sphere(new Vec3(0.0, 201.0, 5.0), 200.0, new Material(new Vec3(1.0, 1.0, 1.0), Vec3.zero())), // "ground"
 
         new Sphere(new Vec3(-4.0, 0.0, 5.0), 1.0, new Material(new Vec3(1.0, 0.0, 0.0), Vec3.zero())),
         new Sphere(new Vec3(-2.0, 0.0, 5.0), 1.0, new Material(new Vec3(0.0, 1.0, 0.0), Vec3.zero())),
@@ -76,7 +76,6 @@ function* render() {
 
             const ray = new Ray(new Vec3(0, 0, 0), new Vec3(nx, ny, 1).normalize());
             let color = ray.trace(scene, NUM_BOUNCES);
-            color = color.div(NUM_BOUNCES);
 
             pixels[i + 0] = color.x * 255;
             pixels[i + 1] = color.y * 255;
@@ -87,6 +86,13 @@ function* render() {
         }
     }
     done = true;
+}
+
+function download(){
+    const link = document.createElement('a');
+    link.download = 'render.png';
+    link.href = canvas.toDataURL()
+    link.click();
 }
 
 

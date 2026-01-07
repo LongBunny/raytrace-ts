@@ -14,9 +14,21 @@
 </style>
 
 <body>
-    <canvas id="canvas" width="800" height="800"></canvas>
-    <!-- Load compiled JS as a module -->
-    <script type="module" src="./dist/main.js"></script>
+<canvas id="canvas" width="800" height="800"></canvas>
+<div>
+    <button onclick="download()">save</button>
+</div>
+<!-- Load compiled JS as a module -->
+<script type="module" src="./dist/main.js"></script>
+
+<script>
+    function download() {
+        const link = document.createElement('a');
+        link.download = 'render.png';
+        link.href = canvas.toDataURL();
+        link.click();
+    }
+</script>
 </body>
 
 </html>

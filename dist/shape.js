@@ -26,7 +26,7 @@ export class Sphere {
             return null;
         const point = ray.origin.add(ray.dir.mul(t));
         const normal = point.sub(this.pos).mul(1.0 / this.r);
-        return new HitInfo(t, point, normal, this.material.color.add(this.material.emissive));
+        return new HitInfo(t, point, normal, this.material);
     }
     ;
 }

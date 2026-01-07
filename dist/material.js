@@ -1,6 +1,6 @@
 export class Material {
-    constructor(color, emissive) {
-        this.color = color;
+    constructor(albedo, emissive) {
+        this.albedo = albedo;
         this.emissive = emissive;
     }
 }
