@@ -71,7 +71,7 @@ function background(ray: Ray): Vec3 {
     // return Vec3.zero();
 
     const d = ray.dir.normalize();
-    const sun_dir = new Vec3(0.3, 0.3, 0.6).normalize();
+    const sun_dir = new Vec3(0.3, 0.8, 0.6).normalize();
 
     const sun_amt = Math.max(0, d.dot(sun_dir));
     const sky_amt = Math.max(0, d.y);

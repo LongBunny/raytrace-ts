@@ -1,14 +1,14 @@
 import { Vec3 } from './vector.js';
 import { Sphere } from './shape.js';
 import { Scene } from './scene.js';
-import { Lambertian, Metal, Dielectric } from "./material.js";
+import { Lambertian, DiffuseLight, Metal, Dielectric } from "./material.js";
 import { path_trace, RenderSettings } from "./pathtracer.js";
 import { Camera } from "./camera.js";
 const render_canvas = document.getElementById('render_canvas');
 const debug_canvas = document.getElementById('debug_canvas');
 const ctx = render_canvas.getContext('2d');
 const debug_ctx = debug_canvas.getContext('2d');
-let debug = true;
+let debug = false;
 let last_render_y = 0.0;
 let last_frame_time = 0.0;
 let frame_time_sum = 0.0;
@@ -69,17 +69,14 @@ function draw() {
     requestAnimationFrame(draw);
 }
 const scene = new Scene([
-    new Sphere(new Vec3(0.0, -202.0, 1.0), 200.0, new Lambertian(new Vec3(1.0, 1.0, 1.0))),
-    // new Sphere(new Vec3(0.0, 4.5, 5.0), 2.0, new Lambertian(new Vec3(1.0, 1.0, 1.0))),
-    // new Sphere(new Vec3(-2.0, -1.0, 4.0), 1.0, new Metal(Vec3.from_hex(0x61666A), 1)),
-    new Sphere(new Vec3(0.0, 0.0, 2.0), 1.0, new Dielectric(1.5)),
-    // new Sphere(new Vec3(1.0, 0.0, 4.0), 1.0, new Dielectric(1.52)),
-    // new Sphere(new Vec3(-1.0, 0.0, 4.0), 1.0, new Dielectric(1.52)),
-    new Sphere(new Vec3(1.0, -1.0, 3.0), 0.8, new Lambertian(new Vec3(1.0, 0.0, 0.0))),
-    new Sphere(new Vec3(-1.0, -1.0, 3.0), 1.5, new Metal(Vec3.from_hex(0xCCAC10), 0.2)),
-    // new Sphere(new Vec3(2.0, -1.0, 4.0), 1.0, new Metal(Vec3.from_hex(0x61666A), 0.1)),
-    // new Sphere(new Vec3(4.0, -1.0, 5.0), 1.0, new Lambertian(new Vec3(1.0, 1.0, 0.0))),
-    // new Sphere(new Vec3(0.0, 8.0, 3.0), 2.0, new DiffuseLight(new Vec3(1.0, 1.0, 1.0))),
+    new Sphere(new Vec3(0.0, -201.0, 1.0), 200.0, new Lambertian(new Vec3(0.8, 0.8, 0.8))),
+    new Sphere(new Vec3(-30.0, 0.0, 55.0), 25.0, new Lambertian(new Vec3(0.3, 0.4, 0.2).srgb_to_linear())),
+    new Sphere(new Vec3(0.0, 0.0, 3.0), 1.0, new Dielectric(1.52)),
+    new Sphere(new Vec3(-2.5, 0.0, 3.0), 1.0, new Metal(new Vec3(0.8, 0.8, 0.8), 0.2)),
+    new Sphere(new Vec3(2.5, 0.0, 3.0), 1.0, new Lambertian(Vec3.from_hex(0xC97AC5).srgb_to_linear())),
+    // new Sphere(new Vec3(1.5, -0.8, 3.0), 0.2, new DiffuseLight(new Vec3(30.0, 0.0, 0.0))),
+    // new Sphere(new Vec3(30.0, 20, 20.0), 15, new DiffuseLight(new Vec3(1.0, 0.9, 0.9).mul(20.0))),
+    new Sphere(new Vec3(0.0, 8.0, 3.0), 2.0, new DiffuseLight(new Vec3(1.0, 1.0, 1.0))),
 ]);
 function* render() {
     console.log(`rendering: bounces = ${render_settings.bounces}, samples = ${render_settings.samples}`);

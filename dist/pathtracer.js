@@ -46,7 +46,7 @@ function radiance(scene, ray, depth, render_settings) {
 function background(ray) {
     // return Vec3.zero();
     const d = ray.dir.normalize();
-    const sun_dir = new Vec3(0.3, 0.3, 0.6).normalize();
+    const sun_dir = new Vec3(0.3, 0.8, 0.6).normalize();
     const sun_amt = Math.max(0, d.dot(sun_dir));
     const sky_amt = Math.max(0, d.y);
     const sky_col = new Vec3(0.2, 0.45, 0.9);
