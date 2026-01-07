@@ -15,3 +15,4 @@ export class Scene {
         return best;
     }
 }
+//# sourceMappingURL=scene.js.map

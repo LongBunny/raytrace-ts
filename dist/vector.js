@@ -52,7 +52,7 @@ export class Vec3 {
         return Math.abs(this.x) < eps && Math.abs(this.y) < eps && Math.abs(this.z) < eps;
     }
     clamp01() {
-        return new Vec3(Math.max(0.0, Math.min(1.0, this.x)), Math.max(0.0, Math.min(1.0, this.y)), Math.max(0.0, Math.min(1.0, this.z)));
+        return new Vec3(BMath.clamp01(this.x), BMath.clamp01(this.y), BMath.clamp01(this.z));
     }
     srgb_to_linear() {
         return new Vec3(BMath.srgb_to_linear(this.x), BMath.srgb_to_linear(this.y), BMath.srgb_to_linear(this.z));
@@ -112,3 +112,4 @@ export class Vec3 {
         return `(${this.x}, ${this.y}, ${this.z})`;
     }
 }
+//# sourceMappingURL=vector.js.map

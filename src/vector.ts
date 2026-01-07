@@ -74,7 +74,7 @@ export class Vec3 {
     }
 
     clamp01(): Vec3 {
-        return new Vec3(Math.max(0.0, Math.min(1.0, this.x)), Math.max(0.0, Math.min(1.0, this.y)), Math.max(0.0, Math.min(1.0, this.z)));
+        return new Vec3(BMath.clamp01(this.x), BMath.clamp01(this.y), BMath.clamp01(this.z));
     }
 
     srgb_to_linear(): Vec3 {

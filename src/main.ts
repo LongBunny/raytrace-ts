@@ -1,7 +1,7 @@
 import {Vec3} from './vector.js';
 import {Sphere} from './shape.js';
 import {Scene} from './scene.js';
-import {Material} from "./material.js";
+import {Lambertian, DiffuseLight, Metal} from "./material.js";
 import {path_trace, RenderSettings} from "./pathtracer.js";
 import {Camera} from "./camera.js";
 
@@ -10,7 +10,7 @@ const debug_canvas = document.getElementById('debug_canvas') as HTMLCanvasElemen
 const ctx = render_canvas.getContext('2d') as CanvasRenderingContext2D;
 const debug_ctx = debug_canvas.getContext('2d') as CanvasRenderingContext2D;
 
-let debug = false;
+let debug = true;
 let last_render_y = 0.0;
 
 let last_frame_time = 0.0;
@@ -24,8 +24,10 @@ ctx.clearRect(0, 0, WIDTH, HEIGHT);
 const imageData = ctx.createImageData(WIDTH, HEIGHT);
 
 let frame_sample_count = 1;
-const accumulate_buffer = new Array<Vec3>(WIDTH * HEIGHT);
-reset_accumulate_buffer();
+let accumulate_buffer = new Array<Vec3>(WIDTH * HEIGHT).fill(Vec3.zero());
+let out_buffer = new Array<Vec3>(WIDTH * HEIGHT).fill(Vec3.zero());
+reset_buffers();
+
 const pixels = imageData.data;
 
 const render_settings = RenderSettings.default();
@@ -45,20 +47,20 @@ addEventListener('keydown', (evt: KeyboardEvent) => {
     re_render();
 });
 
+function reset_buffers() {
+    accumulate_buffer = accumulate_buffer.map(() => Vec3.zero());
+    out_buffer = out_buffer.map(() => Vec3.zero());
+}
+
 function re_render() {
     reset_ui();
-    reset_accumulate_buffer();
+    reset_buffers();
     frame_sample_count = 1;
     pixels.fill(0.0);
     ctx.clearRect(0, 0, WIDTH, HEIGHT);
     gen = render_gen();
 }
 
-function reset_accumulate_buffer() {
-    for (let i = 0; i < WIDTH * HEIGHT; i++) {
-        accumulate_buffer[i] = new Vec3(0.0, 0.0, 0.0);
-    }
-}
 
 function draw() {
     const start = performance.now();
@@ -91,16 +93,15 @@ function draw() {
 
 const scene = new Scene(
     [
-        // new Sphere(new Vec3(0.0, 201.0, 5.0), 200.0, new Material(new Vec3(1.0, 1.0, 1.0), Vec3.zero())), // "ground"
+        new Sphere(new Vec3(0.0, -201.0, 3.0), 200.0, new Lambertian(new Vec3(1.0, 1.0, 1.0))),
 
-        new Sphere(new Vec3(-4.0, 0.0, 3.0), 1.0, new Material(new Vec3(1.0, 0.0, 0.0))),
-        new Sphere(new Vec3(-2.0, 0.0, 3.0), 1.0, new Material(new Vec3(0.0, 1.0, 0.0))),
-        new Sphere(new Vec3(0.0, 0.0, 3.0), 1.0, new Material(new Vec3(0.0, 0.0, 1.0))),
-        new Sphere(new Vec3(2.0, 0.0, 3.0), 1.0, new Material(new Vec3(1.0, 1.0, 0.0))),
-        new Sphere(new Vec3(4.0, 0.0, 3.0), 1.0, new Material(new Vec3(0.0, 1.0, 1.0))),
+        new Sphere(new Vec3(-4.0, 0.0, 3.0), 1.0, new Lambertian(new Vec3(0.0, 1.0, 0.0))),
+        new Sphere(new Vec3(-2.0, 0.0, 3.0), 1.0, new Metal(Vec3.from_hex(0x61666A), 1)),
+        new Sphere(new Vec3(0.0, 0.0, 3.0), 1.0, new Lambertian(new Vec3(0.0, 0.0, 1.0))),
+        new Sphere(new Vec3(2.0, 0.0, 3.0), 1.0, new Metal(Vec3.from_hex(0x61666A), 0.1)),
+        new Sphere(new Vec3(4.0, 0.0, 3.0), 1.0, new Lambertian(new Vec3(1.0, 1.0, 0.0))),
 
-
-        // new Sphere(new Vec3(100.0, -150.0, 300.0), 75.0, new Material(Vec3.zero())), // "sun"
+        new Sphere(new Vec3(0.0, 5.0, 3.0), 2.0, new DiffuseLight(new Vec3(1.0, 1.0, 1.0))),
     ]
 );
 
@@ -138,7 +139,7 @@ function* render() {
 
                 out_color = out_color.clamp01();
 
-                const pixels_idx = i * 4;
+                const pixels_idx = (y * WIDTH + x) * 4;
                 pixels[pixels_idx + 0] = out_color.x * 255;
                 pixels[pixels_idx + 1] = out_color.y * 255;
                 pixels[pixels_idx + 2] = out_color.z * 255;
@@ -147,6 +148,28 @@ function* render() {
                 yield;
             }
         }
+
+        // for (let y = 1; y < HEIGHT - 1; y++) {
+        //     for (let x = 1; x < WIDTH - 1; x++) {
+        //
+        //         let sum = Vec3.zero();
+        //         for (let dy = -1; dy <= 1; dy++) {
+        //             for (let dx = -1; dx <= 1; dx++) {
+        //                 const di = (y * WIDTH + x) + dx + dy * WIDTH;
+        //                 const color = accumulate_buffer[di];
+        //                 sum = sum.add(color);
+        //             }
+        //         }
+        //
+        //         sum = sum.div(9.0);
+        //
+        //         const pixels_idx = (y * WIDTH + x) * 4;
+        //         pixels[pixels_idx + 0] = sum.x * 255;
+        //         pixels[pixels_idx + 1] = sum.y * 255;
+        //         pixels[pixels_idx + 2] = sum.z * 255;
+        //         pixels[pixels_idx + 3] = 255;
+        //     }
+        // }
 
 
         frame_done = true;

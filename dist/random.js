@@ -6,3 +6,4 @@ export class Random {
         return min + (max - min) * this.rand();
     }
 }
+//# sourceMappingURL=random.js.map

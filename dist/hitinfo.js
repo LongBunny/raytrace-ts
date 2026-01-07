@@ -7,3 +7,4 @@ export class HitInfo {
         this.material = material;
     }
 }
+//# sourceMappingURL=hitinfo.js.map

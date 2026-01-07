@@ -55,17 +55,23 @@ function radiance(scene: Scene, ray: Ray, depth: number): Vec3 {
     if (depth <= 0) return Vec3.zero();
 
     const hit = scene.hit(ray);
-    if (hit) {
-        const scatter = hit.material.scatter(ray, hit);
-        return scatter.attenuation.mul_vec(radiance(scene, scatter.ray, depth - 1));
-    }
+    if (!hit)
+        return background(ray);
 
-    return background(ray);
+    const emitted = hit.material.emitted(hit);
+    const scatter = hit.material.scatter(ray, hit);
+    if (!scatter) return emitted;
+
+    return emitted.add(
+        scatter.attenuation.mul_vec(radiance(scene, scatter.ray, depth - 1))
+    );
 }
 
 function background(ray: Ray): Vec3 {
+    return Vec3.zero();
+
     const d = ray.dir.normalize();
-    const sun_dir = new Vec3(0.3, 0.4, 0.6).normalize();
+    const sun_dir = new Vec3(0.3, 0.9, 0.6).normalize();
 
     const sun_amt = Math.max(0, d.dot(sun_dir));
     const sky_amt = Math.max(0, d.y);
@@ -75,6 +81,7 @@ function background(ray: Ray): Vec3 {
     const sun_col = new Vec3(1.0, 0.9, 0.6);
 
     let col = Vec3.lerp(horizon_col, sky_col, Math.pow(sky_amt, 0.5));
+    col = col.mul(0.7 + 0.3 * sky_amt);
     col = col.add(sun_col.mul(Math.pow(sun_amt, 64)));
 
     return col;

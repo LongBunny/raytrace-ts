@@ -32,3 +32,4 @@ export class Sphere {
     }
     ;
 }
+//# sourceMappingURL=shape.js.map

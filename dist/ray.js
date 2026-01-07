@@ -7,3 +7,4 @@ export class Ray {
         return this.origin.add(this.dir.mul(t));
     }
 }
+//# sourceMappingURL=ray.js.map

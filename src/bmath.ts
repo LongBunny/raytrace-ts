@@ -7,4 +7,8 @@ export class BMath {
     static srgb_to_linear(c: number): number {
         return Math.pow(c, 2.2);
     }
+
+    static clamp01(x: number): number {
+        return Math.min(Math.max(x, 0.0), 1.0);
+    }
 }

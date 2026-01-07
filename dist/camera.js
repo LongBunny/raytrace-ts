@@ -22,3 +22,4 @@ export class Camera {
         return new Ray(this.origin, dir.normalize());
     }
 }
+//# sourceMappingURL=camera.js.map
