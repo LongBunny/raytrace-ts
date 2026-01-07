@@ -1,6 +1,5 @@
 import { Vec3 } from "./vector.js";
 import { Random } from "./random.js";
-import { Dielectric } from "./material.js";
 export class RenderSettings {
     constructor(bounces, samples, gamma_correction) {
         this.bounces = bounces;
@@ -38,8 +37,6 @@ function radiance(scene, ray, depth, render_settings) {
     const hit = scene.hit(ray);
     if (!hit)
         return background(ray);
-    if (depth < render_settings.bounces - 5 && hit.material instanceof Dielectric)
-        return Vec3.zero();
     const emitted = hit.material.emitted(hit);
     const scatter = hit.material.scatter(ray, hit);
     if (!scatter)

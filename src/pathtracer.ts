@@ -58,8 +58,6 @@ function radiance(scene: Scene, ray: Ray, depth: number, render_settings: Render
     if (!hit)
         return background(ray);
 
-    if (depth < render_settings.bounces - 5 && hit.material instanceof Dielectric) return Vec3.zero();
-
     const emitted = hit.material.emitted(hit);
     const scatter = hit.material.scatter(ray, hit);
     if (!scatter) return emitted;

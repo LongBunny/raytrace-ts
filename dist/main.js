@@ -96,7 +96,7 @@ function* render() {
                 let out_color = accumulate_buffer[i].div(frame_sample_count);
                 if (debug) {
                     // debug middle pixel
-                    if (x === Math.floor(x / WIDTH) && y === Math.floor(y / HEIGHT))
+                    if (x === Math.floor(WIDTH / 2) && y === Math.floor(HEIGHT / 2))
                         console.log(`sample: ${frame_sample_count}, color: ${out_color}`);
                 }
                 if (render_settings.gamma_correction) {

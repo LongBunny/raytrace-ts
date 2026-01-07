@@ -128,7 +128,7 @@ function* render() {
 
                 if (debug) {
                     // debug middle pixel
-                    if (x === Math.floor(x / WIDTH) && y === Math.floor(y / HEIGHT))
+                    if (x === Math.floor(WIDTH / 2) && y === Math.floor(HEIGHT / 2))
                         console.log(`sample: ${frame_sample_count}, color: ${out_color}`)
                 }
 
