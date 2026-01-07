@@ -79,8 +79,15 @@ body {
 .ctrl {
     display: flex;
     align-items: center;
-
-    input[type=range] {
-        margin-left: 10px;
-    }
 }
+
+input[type=range] {
+    margin-left: 10px;
+}
+
+select {
+    background-color: #202020;
+    /*color: #202020;*/
+}
+
+select

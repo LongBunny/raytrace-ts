@@ -3,24 +3,31 @@ import {Ray} from "./ray.js";
 import {Vec3} from "./vector.js";
 import {Camera} from "./camera.js";
 import {Random} from "./random.js";
-import {Dielectric} from "./material.js";
+
+export type ToneMap = 'none' | 'reinhard' | 'aces';
 
 export class RenderSettings {
     bounces: number;
     samples: number;
     gamma_correction: boolean;
+    exposure: number;
+    tone_map: ToneMap;
 
-    constructor(bounces: number, samples: number, gamma_correction: boolean) {
+    constructor(bounces: number, samples: number, gamma_correction: boolean, exposure: number, tone_map: ToneMap) {
         this.bounces = bounces;
         this.samples = samples;
         this.gamma_correction = gamma_correction;
+        this.exposure = exposure;
+        this.tone_map = tone_map;
     }
 
     static default(): RenderSettings {
         return new RenderSettings(
             20,
             10,
-            true
+            true,
+            1.0,
+            'aces'
         );
     }
 }

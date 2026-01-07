@@ -1,13 +1,15 @@
 import { Vec3 } from "./vector.js";
 import { Random } from "./random.js";
 export class RenderSettings {
-    constructor(bounces, samples, gamma_correction) {
+    constructor(bounces, samples, gamma_correction, exposure, tone_map) {
         this.bounces = bounces;
         this.samples = samples;
         this.gamma_correction = gamma_correction;
+        this.exposure = exposure;
+        this.tone_map = tone_map;
     }
     static default() {
-        return new RenderSettings(20, 10, true);
+        return new RenderSettings(20, 10, true, 1.0, 'aces');
     }
 }
 export function path_trace(x, y, width, height, camera, scene, render_settings) {

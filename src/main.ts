@@ -2,7 +2,7 @@ import {Vec3} from './vector.js';
 import {Sphere} from './shape.js';
 import {Scene} from './scene.js';
 import {Lambertian, DiffuseLight, Metal, Dielectric} from "./material.js";
-import {path_trace, RenderSettings} from "./pathtracer.js";
+import {path_trace, RenderSettings, ToneMap} from "./pathtracer.js";
 import {Camera} from "./camera.js";
 
 const render_canvas = document.getElementById('render_canvas') as HTMLCanvasElement;
@@ -100,12 +100,6 @@ const scene = new Scene(
         new Sphere(new Vec3(-2.5, 0.0, 3.0), 1.0, new Metal(new Vec3(0.8, 0.8, 0.8), 0.2)),
         new Sphere(new Vec3(2.5, 0.0, 3.0), 1.0, new Lambertian(Vec3.from_hex(0xC97AC5).srgb_to_linear())),
 
-
-        // new Sphere(new Vec3(1.5, -0.8, 3.0), 0.2, new DiffuseLight(new Vec3(30.0, 0.0, 0.0))),
-        // new Sphere(new Vec3(30.0, 20, 20.0), 15, new DiffuseLight(new Vec3(1.0, 0.9, 0.9).mul(20.0))),
-
-
-
         new Sphere(new Vec3(0.0, 8.0, 3.0), 2.0, new DiffuseLight(new Vec3(1.0, 1.0, 1.0))),
     ]
 );
@@ -132,6 +126,9 @@ function* render() {
                     if (x === Math.floor(WIDTH / 2) && y === Math.floor(HEIGHT / 2))
                         console.log(`sample: ${frame_sample_count}, color: ${out_color}`)
                 }
+
+                out_color = out_color.mul(render_settings.exposure);
+                out_color = tone_map_color(out_color, render_settings.tone_map);
 
                 if (render_settings.gamma_correction) {
                     const inverse = 1.0 / 2.2;
@@ -187,6 +184,33 @@ function* render() {
 
 requestAnimationFrame(draw);
 
+function tone_map_color(color: Vec3, tone_map: ToneMap): Vec3 {
+    switch (tone_map) {
+        case 'reinhard':
+            return new Vec3(
+                color.x / (1.0 + color.x),
+                color.y / (1.0 + color.y),
+                color.z / (1.0 + color.z)
+            );
+        case 'aces':
+            return aces_filmic(color);
+        case 'none':
+        default:
+            return color;
+    }
+}
+
+function aces_filmic(color: Vec3): Vec3 {
+    const a = 2.51;
+    const b = 0.03;
+    const c = 2.43;
+    const d = 0.59;
+    const e = 0.14;
+
+    const filmic = (x: number) => (x * (a * x + b)) / (x * (c * x + d) + e);
+    return new Vec3(filmic(color.x), filmic(color.y), filmic(color.z));
+}
+
 
 // ui
 
@@ -197,6 +221,11 @@ const bounces_value = document.getElementById('bounces_value') as HTMLSpanElemen
 
 const samples_input = document.getElementById('samples_input') as HTMLInputElement;
 const samples_value = document.getElementById('samples_value') as HTMLSpanElement;
+
+const exposure_input = document.getElementById('exposure_input') as HTMLInputElement;
+const exposure_value = document.getElementById('exposure_value') as HTMLSpanElement;
+
+const tone_map_select = document.getElementById('tone_map_select') as HTMLSelectElement;
 
 const gamma_checkbox = document.getElementById('gamma_checkbox') as HTMLInputElement;
 
@@ -232,6 +261,17 @@ samples_input.addEventListener('change', () => {
 });
 samples_input.addEventListener('input', () => samples_value.innerText = samples_input.value);
 
+exposure_input.addEventListener('change', () => {
+    render_settings.exposure = parseFloat(exposure_input.value);
+    re_render();
+});
+exposure_input.addEventListener('input', () => exposure_value.innerText = exposure_input.value);
+
+tone_map_select.addEventListener('change', () => {
+    render_settings.tone_map = tone_map_select.value as ToneMap;
+    re_render();
+});
+
 
 reset_ui();
 
@@ -244,6 +284,11 @@ function reset_ui() {
 
     samples_input.value = '' + render_settings.samples;
     samples_value.innerText = samples_input.value;
+
+    exposure_input.value = '' + render_settings.exposure;
+    exposure_value.innerText = exposure_input.value;
+
+    tone_map_select.value = render_settings.tone_map;
 
     frame_time_sum = 0.0;
     accum_frame_span.innerText = `0`;

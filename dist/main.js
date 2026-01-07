@@ -74,8 +74,6 @@ const scene = new Scene([
     new Sphere(new Vec3(0.0, 0.0, 3.0), 1.0, new Dielectric(1.52)),
     new Sphere(new Vec3(-2.5, 0.0, 3.0), 1.0, new Metal(new Vec3(0.8, 0.8, 0.8), 0.2)),
     new Sphere(new Vec3(2.5, 0.0, 3.0), 1.0, new Lambertian(Vec3.from_hex(0xC97AC5).srgb_to_linear())),
-    // new Sphere(new Vec3(1.5, -0.8, 3.0), 0.2, new DiffuseLight(new Vec3(30.0, 0.0, 0.0))),
-    // new Sphere(new Vec3(30.0, 20, 20.0), 15, new DiffuseLight(new Vec3(1.0, 0.9, 0.9).mul(20.0))),
     new Sphere(new Vec3(0.0, 8.0, 3.0), 2.0, new DiffuseLight(new Vec3(1.0, 1.0, 1.0))),
 ]);
 function* render() {
@@ -96,6 +94,8 @@ function* render() {
                     if (x === Math.floor(WIDTH / 2) && y === Math.floor(HEIGHT / 2))
                         console.log(`sample: ${frame_sample_count}, color: ${out_color}`);
                 }
+                out_color = out_color.mul(render_settings.exposure);
+                out_color = tone_map_color(out_color, render_settings.tone_map);
                 if (render_settings.gamma_correction) {
                     const inverse = 1.0 / 2.2;
                     out_color = new Vec3(Math.pow(out_color.x, inverse), Math.pow(out_color.y, inverse), Math.pow(out_color.z, inverse));
@@ -137,12 +137,35 @@ function* render() {
     }
 }
 requestAnimationFrame(draw);
+function tone_map_color(color, tone_map) {
+    switch (tone_map) {
+        case 'reinhard':
+            return new Vec3(color.x / (1.0 + color.x), color.y / (1.0 + color.y), color.z / (1.0 + color.z));
+        case 'aces':
+            return aces_filmic(color);
+        case 'none':
+        default:
+            return color;
+    }
+}
+function aces_filmic(color) {
+    const a = 2.51;
+    const b = 0.03;
+    const c = 2.43;
+    const d = 0.59;
+    const e = 0.14;
+    const filmic = (x) => (x * (a * x + b)) / (x * (c * x + d) + e);
+    return new Vec3(filmic(color.x), filmic(color.y), filmic(color.z));
+}
 // ui
 const render_btn = document.getElementById('render_btn');
 const bounces_input = document.getElementById('bounces_input');
 const bounces_value = document.getElementById('bounces_value');
 const samples_input = document.getElementById('samples_input');
 const samples_value = document.getElementById('samples_value');
+const exposure_input = document.getElementById('exposure_input');
+const exposure_value = document.getElementById('exposure_value');
+const tone_map_select = document.getElementById('tone_map_select');
 const gamma_checkbox = document.getElementById('gamma_checkbox');
 const debug_checkbox = document.getElementById('debug_checkbox');
 const accum_frame_span = document.getElementById('accum_frame_span');
@@ -168,6 +191,15 @@ samples_input.addEventListener('change', () => {
     re_render();
 });
 samples_input.addEventListener('input', () => samples_value.innerText = samples_input.value);
+exposure_input.addEventListener('change', () => {
+    render_settings.exposure = parseFloat(exposure_input.value);
+    re_render();
+});
+exposure_input.addEventListener('input', () => exposure_value.innerText = exposure_input.value);
+tone_map_select.addEventListener('change', () => {
+    render_settings.tone_map = tone_map_select.value;
+    re_render();
+});
 reset_ui();
 function reset_ui() {
     gamma_checkbox.checked = render_settings.gamma_correction;
@@ -176,6 +208,9 @@ function reset_ui() {
     bounces_value.innerText = bounces_input.value;
     samples_input.value = '' + render_settings.samples;
     samples_value.innerText = samples_input.value;
+    exposure_input.value = '' + render_settings.exposure;
+    exposure_value.innerText = exposure_input.value;
+    tone_map_select.value = render_settings.tone_map;
     frame_time_sum = 0.0;
     accum_frame_span.innerText = `0`;
     last_render_time_span.innerText = `-`;

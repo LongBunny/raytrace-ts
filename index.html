@@ -41,6 +41,25 @@
 
         <div class="control_block">
             <div class="ctrl">
+                <span class="label">Exposure:&nbsp;</span>
+                <span style="width: 30px;" id="exposure_value">1.0</span>
+                <input type="range" id="exposure_input" min="0.1" max="5.0" value="1.0" step="0.1">
+            </div>
+        </div>
+
+        <div class="control_block">
+            <div class="ctrl">
+                <span class="label">Tone map:&nbsp;</span>
+                <select id="tone_map_select">
+                    <option value="aces">ACES</option>
+                    <option value="reinhard">Reinhard</option>
+                    <option value="none">None</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="control_block">
+            <div class="ctrl">
                 <span class="label">Gamma correction</span>
                 <input type="checkbox" id="gamma_checkbox">
             </div>
