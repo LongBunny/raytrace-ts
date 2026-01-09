@@ -30,7 +30,7 @@ body {
         height: 500px;
     }
 
-    #render_canvas, #debug_canvas {
+    #render_canvas, #debug_canvas, #webgpu_canvas {
         position: absolute;
         left: 0;
         top: 0;
@@ -39,6 +39,10 @@ body {
     #debug_canvas {
         pointer-events: none;
     }
+}
+
+#webgpu_canvas {
+    display: none;
 }
 
 .info {

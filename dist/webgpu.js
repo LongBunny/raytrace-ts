@@ -6,8 +6,7 @@ export function check_webgpu() {
     }
     return true;
 }
-async function main() {
-    const canvas = document.querySelector('canvas');
+export async function startWebGpuRenderer(canvas) {
     const ctx = canvas.getContext('webgpu');
     // init
     const adapter = await navigator.gpu.requestAdapter();
@@ -165,7 +164,11 @@ fn fs_main(in: VSOut) -> @location(0) vec4<f32> {
     }
     let { width, height } = rebuild_size_dependent_resources();
     // draw
+    let running = true;
+    let raf_id = 0;
     function frame() {
+        if (!running)
+            return;
         const before_w = width, before_h = height;
         ({ width, height } = resize_canvas_to_display_size());
         if (before_w !== width || before_h !== height) {
@@ -199,8 +202,18 @@ fn fs_main(in: VSOut) -> @location(0) vec4<f32> {
             pass.end();
         }
         device.queue.submit([encoder.finish()]);
-        requestAnimationFrame(frame);
+        raf_id = requestAnimationFrame(frame);
     }
-    requestAnimationFrame(frame);
+    raf_id = requestAnimationFrame(frame);
+    return {
+        stop: () => {
+            running = false;
+            if (raf_id) {
+                cancelAnimationFrame(raf_id);
+                raf_id = 0;
+            }
+            storage_texture?.destroy();
+        }
+    };
 }
 //# sourceMappingURL=webgpu.js.map
