@@ -25,6 +25,9 @@ export function createCpuRenderer(opts: {
     debugCanvas: HTMLCanvasElement;
     onFrameDone?: (stats: CpuRendererStats) => void;
 }): CpuRenderer {
+
+    // console.log(Vec3.from_hex(0xC97AC5).srgb_to_linear());
+
     const {renderCanvas, debugCanvas, onFrameDone} = opts;
     const ctx = renderCanvas.getContext('2d') as CanvasRenderingContext2D;
     const debugCtx = debugCanvas.getContext('2d') as CanvasRenderingContext2D;
@@ -110,11 +113,9 @@ export function createCpuRenderer(opts: {
         [
             new Sphere(new Vec3(0.0, -201.0, 1.0), 200.0, new Lambertian(new Vec3(0.8, 0.8, 0.8))),
             new Sphere(new Vec3(-30.0, 0.0, 55.0), 25.0, new Lambertian(new Vec3(0.3, 0.4, 0.2).srgb_to_linear())),
-
             new Sphere(new Vec3(0.0, 0.0, 3.0), 1.0, new Dielectric(1.52)),
             new Sphere(new Vec3(-2.5, 0.0, 3.0), 1.0, new Metal(new Vec3(0.8, 0.8, 0.8), 0.2)),
             new Sphere(new Vec3(2.5, 0.0, 3.0), 1.0, new Lambertian(Vec3.from_hex(0xC97AC5).srgb_to_linear())),
-
             new Sphere(new Vec3(0.0, 8.0, 3.0), 2.0, new DiffuseLight(new Vec3(1.0, 1.0, 1.0))),
         ]
     );

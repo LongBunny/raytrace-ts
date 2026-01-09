@@ -5,6 +5,7 @@ import { Lambertian, DiffuseLight, Metal, Dielectric } from "./material.js";
 import { path_trace, RenderSettings } from "./pathtracer.js";
 import { Camera } from "./camera.js";
 export function createCpuRenderer(opts) {
+    // console.log(Vec3.from_hex(0xC97AC5).srgb_to_linear());
     const { renderCanvas, debugCanvas, onFrameDone } = opts;
     const ctx = renderCanvas.getContext('2d');
     const debugCtx = debugCanvas.getContext('2d');

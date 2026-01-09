@@ -37,67 +37,8 @@ export async function startWebGpuRenderer(canvas: HTMLCanvasElement): Promise<{ 
 
 
     // shaders
-
-    const compute = /*wgsl*/`
-struct Params {
-  width: u32,
-  height: u32,
-}
-
-@group(0) @binding(0) var<uniform> params: Params;
-@group(0) @binding(1) var out_tex: texture_storage_2d<rgba8unorm, write>;
-
-@compute @workgroup_size(8, 8)
-fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
-    let x = gid.x;
-    let y = gid.y;
-    
-    if (x >= params.width || y >= params.height) { return; }
-    
-    let i = x + y * params.width;
-    
-    let u = f32(x) / f32(params.width - 1u);
-    let v = f32(y) / f32(params.height - 1u);
-    
-    textureStore(out_tex, vec2<i32>(i32(x), i32(y)), vec4<f32>(u, v, 0.0, 1.0));
-}
-    `;
-
-    const render = /*wgsl*/`
-struct VSOut {
-    @builtin(position) pos : vec4<f32>,
-    @location(0) uv : vec2<f32>,
-};
-
-@vertex
-fn vs_main(@builtin(vertex_index) vid : u32) -> VSOut {
-    var positions = array<vec2<f32>, 3>(
-        vec2<f32>(-1.0, -1.0),
-        vec2<f32>(3.0, -1.0),
-        vec2<f32>(-1.0, 3.0),
-    );
-    
-    var uvs = array<vec2<f32>, 3>(
-        vec2<f32>(0.0, 0.0),
-        vec2<f32>(2.0, 0.0),
-        vec2<f32>(0.0, 2.0),
-    );
-    
-    var out: VSOut;
-    out.pos = vec4<f32>(positions[vid], 0.0, 1.0);
-    out.uv = uvs[vid];
-    return out;
-}
-
-@group(0) @binding(0) var samp: sampler;
-@group(0) @binding(1) var tex: texture_2d<f32>;
-
-@fragment
-fn fs_main(in: VSOut) -> @location(0) vec4<f32> {
-    return textureSample(tex, samp, in.uv);
-}
-    `;
-
+    const compute = await load_shader_src(new URL("/src/shaders/raytrace.wgsl", import.meta.url).toString());
+    const render = await load_shader_src(new URL("/src/shaders/screen.wgsl", import.meta.url).toString());
 
     const compute_module = device.createShaderModule({code: compute});
     {
@@ -203,6 +144,9 @@ fn fs_main(in: VSOut) -> @location(0) vec4<f32> {
     let raf_id = 0;
     function frame() {
         if (!running) return;
+
+        const start = performance.now();
+
         const before_w = width, before_h = height;
         ({width, height} = resize_canvas_to_display_size());
         if (before_w !== width || before_h !== height) {
@@ -245,7 +189,12 @@ fn fs_main(in: VSOut) -> @location(0) vec4<f32> {
         }
 
         device.queue.submit([encoder.finish()]);
-        raf_id = requestAnimationFrame(frame);
+        device.queue.onSubmittedWorkDone().then(() => {
+            console.log(`frame took ${performance.now() - start} ms`);
+        });
+
+        // only one frame for now
+        // raf_id = requestAnimationFrame(frame);
     }
 
     raf_id = requestAnimationFrame(frame);
@@ -260,4 +209,11 @@ fn fs_main(in: VSOut) -> @location(0) vec4<f32> {
             storage_texture?.destroy();
         }
     };
+}
+
+
+async function load_shader_src(path: string): Promise<string> {
+    const result = await fetch(path);
+    if (!result.ok) throw new Error(`Failed to load shader source ${path}: ${result.status} ${result.statusText}`);
+    return await result.text();
 }
