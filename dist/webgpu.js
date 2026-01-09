@@ -6,7 +6,7 @@ export function check_webgpu() {
     }
     return true;
 }
-export async function startWebGpuRenderer(canvas) {
+export async function startWebGpuRenderer(canvas, opts = {}) {
     const ctx = canvas.getContext('webgpu');
     // init
     const adapter = await navigator.gpu.requestAdapter();
@@ -35,14 +35,14 @@ export async function startWebGpuRenderer(canvas) {
     {
         const info = await compute_module.getCompilationInfo();
         for (const msg of info.messages) {
-            console.log(`[WGSL ${msg.type}] line ${msg.lineNum}:${msg.linePos} - ${msg.message}`);
+            console.log(`[WGSL ${msg.type}] line ${msg.lineNum}:${msg.linePos} - raytrace: ${msg.message}`);
         }
     }
     const render_module = device.createShaderModule({ code: render });
     {
         const info = await render_module.getCompilationInfo();
         for (const msg of info.messages) {
-            console.log(`[WGSL ${msg.type}] line ${msg.lineNum}:${msg.linePos} - ${msg.message}`);
+            console.log(`[WGSL ${msg.type}] line ${msg.lineNum}:${msg.linePos} - screen: ${msg.message}`);
         }
     }
     // pipelines
@@ -68,13 +68,17 @@ export async function startWebGpuRenderer(canvas) {
         addressModeV: 'clamp-to-edge'
     });
     const params_buffer = device.createBuffer({
-        size: 8,
+        size: 16,
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
     });
-    let storage_texture = null;
-    let storage_texture_view = null;
-    let compute_bind_group = null;
-    let render_bind_group = null;
+    let accum_texture_a = null;
+    let accum_texture_b = null;
+    let accum_view_a = null;
+    let accum_view_b = null;
+    let compute_bind_groups = null;
+    let render_bind_groups = null;
+    let frame_index = 0;
+    let use_a_as_prev = true;
     function rebuild_size_dependent_resources() {
         const { width, height } = resize_canvas_to_display_size();
         ctx.configure({
@@ -82,49 +86,88 @@ export async function startWebGpuRenderer(canvas) {
             format: presentationFormat,
             alphaMode: 'opaque'
         });
-        device.queue.writeBuffer(params_buffer, 0, new Uint32Array([width, height]));
-        storage_texture?.destroy();
-        storage_texture = device.createTexture({
+        frame_index = 0;
+        use_a_as_prev = true;
+        device.queue.writeBuffer(params_buffer, 0, new Uint32Array([width, height, frame_index, 0]));
+        accum_texture_a?.destroy();
+        accum_texture_b?.destroy();
+        accum_texture_a = device.createTexture({
             size: { width, height },
-            format: 'rgba8unorm',
+            format: 'rgba16float',
             usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
         });
-        storage_texture_view = storage_texture.createView();
-        compute_bind_group = device.createBindGroup({
-            layout: compute_pipeline.getBindGroupLayout(0),
-            entries: [
-                { binding: 0, resource: { buffer: params_buffer } },
-                { binding: 1, resource: storage_texture_view }
-            ],
+        accum_texture_b = device.createTexture({
+            size: { width, height },
+            format: 'rgba16float',
+            usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
         });
-        render_bind_group = device.createBindGroup({
-            layout: render_pipeline.getBindGroupLayout(0),
-            entries: [
-                { binding: 0, resource: sampler },
-                { binding: 1, resource: storage_texture_view }
-            ]
-        });
+        accum_view_a = accum_texture_a.createView();
+        accum_view_b = accum_texture_b.createView();
+        compute_bind_groups = [
+            device.createBindGroup({
+                layout: compute_pipeline.getBindGroupLayout(0),
+                entries: [
+                    { binding: 0, resource: { buffer: params_buffer } },
+                    { binding: 1, resource: accum_view_a },
+                    { binding: 2, resource: accum_view_b },
+                ],
+            }),
+            device.createBindGroup({
+                layout: compute_pipeline.getBindGroupLayout(0),
+                entries: [
+                    { binding: 0, resource: { buffer: params_buffer } },
+                    { binding: 1, resource: accum_view_b },
+                    { binding: 2, resource: accum_view_a },
+                ],
+            }),
+        ];
+        render_bind_groups = [
+            device.createBindGroup({
+                layout: render_pipeline.getBindGroupLayout(0),
+                entries: [
+                    { binding: 0, resource: sampler },
+                    { binding: 1, resource: accum_view_b },
+                ],
+            }),
+            device.createBindGroup({
+                layout: render_pipeline.getBindGroupLayout(0),
+                entries: [
+                    { binding: 0, resource: sampler },
+                    { binding: 1, resource: accum_view_a },
+                ],
+            }),
+        ];
         return { width, height };
     }
     let { width, height } = rebuild_size_dependent_resources();
     // draw
     let running = true;
     let raf_id = 0;
-    function frame() {
+    let max_fps = opts.maxFps ?? 30;
+    let last_frame_time = 0;
+    function frame(now = performance.now()) {
         if (!running)
             return;
+        const min_frame_ms = max_fps > 0 ? 1000 / max_fps : 0;
+        if (min_frame_ms > 0 && now - last_frame_time < min_frame_ms) {
+            raf_id = requestAnimationFrame(frame);
+            return;
+        }
+        last_frame_time = now;
         const start = performance.now();
         const before_w = width, before_h = height;
         ({ width, height } = resize_canvas_to_display_size());
         if (before_w !== width || before_h !== height) {
             rebuild_size_dependent_resources();
         }
+        const ping_pong_index = use_a_as_prev ? 0 : 1;
+        device.queue.writeBuffer(params_buffer, 0, new Uint32Array([width, height, frame_index, 0]));
         const encoder = device.createCommandEncoder();
         // compute pass
         {
             const pass = encoder.beginComputePass();
             pass.setPipeline(compute_pipeline);
-            pass.setBindGroup(0, compute_bind_group);
+            pass.setBindGroup(0, compute_bind_groups[ping_pong_index]);
             const wx = 8;
             const wy = 8;
             pass.dispatchWorkgroups(Math.ceil(width / wx), Math.ceil(height / wy));
@@ -142,16 +185,17 @@ export async function startWebGpuRenderer(canvas) {
                     }],
             });
             pass.setPipeline(render_pipeline);
-            pass.setBindGroup(0, render_bind_group);
+            pass.setBindGroup(0, render_bind_groups[ping_pong_index]);
             pass.draw(3, 1, 0, 0);
             pass.end();
         }
         device.queue.submit([encoder.finish()]);
         device.queue.onSubmittedWorkDone().then(() => {
-            console.log(`frame took ${performance.now() - start} ms`);
+            console.log(`frame ${frame_index} took ${performance.now() - start} ms`);
         });
-        // only one frame for now
-        // raf_id = requestAnimationFrame(frame);
+        use_a_as_prev = !use_a_as_prev;
+        frame_index += 1;
+        raf_id = requestAnimationFrame(frame);
     }
     raf_id = requestAnimationFrame(frame);
     return {
@@ -161,7 +205,11 @@ export async function startWebGpuRenderer(canvas) {
                 cancelAnimationFrame(raf_id);
                 raf_id = 0;
             }
-            storage_texture?.destroy();
+            accum_texture_a?.destroy();
+            accum_texture_b?.destroy();
+        },
+        setMaxFps: (fps) => {
+            max_fps = Math.max(1, Math.floor(fps));
         }
     };
 }

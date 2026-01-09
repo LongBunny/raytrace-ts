@@ -8,7 +8,19 @@ export function check_webgpu(): boolean {
     return true;
 }
 
-export async function startWebGpuRenderer(canvas: HTMLCanvasElement): Promise<{ stop: () => void }> {
+export type WebGpuRendererController = {
+    stop: () => void;
+    setMaxFps: (fps: number) => void;
+};
+
+export type WebGpuRendererOptions = {
+    maxFps?: number;
+};
+
+export async function startWebGpuRenderer(
+    canvas: HTMLCanvasElement,
+    opts: WebGpuRendererOptions = {}
+): Promise<WebGpuRendererController> {
     const ctx = canvas.getContext('webgpu')!;
     // init
 
@@ -45,7 +57,7 @@ export async function startWebGpuRenderer(canvas: HTMLCanvasElement): Promise<{ 
         const info = await compute_module.getCompilationInfo();
         for (const msg of info.messages) {
             console.log(
-                `[WGSL ${msg.type}] line ${msg.lineNum}:${msg.linePos} - ${msg.message}`
+                `[WGSL ${msg.type}] line ${msg.lineNum}:${msg.linePos} - raytrace: ${msg.message}`
             );
         }
     }
@@ -55,7 +67,7 @@ export async function startWebGpuRenderer(canvas: HTMLCanvasElement): Promise<{ 
         const info = await render_module.getCompilationInfo();
         for (const msg of info.messages) {
             console.log(
-                `[WGSL ${msg.type}] line ${msg.lineNum}:${msg.linePos} - ${msg.message}`
+                `[WGSL ${msg.type}] line ${msg.lineNum}:${msg.linePos} - screen: ${msg.message}`
             );
         }
     }
@@ -89,15 +101,20 @@ export async function startWebGpuRenderer(canvas: HTMLCanvasElement): Promise<{ 
 
 
     const params_buffer = device.createBuffer({
-        size: 8,
+        size: 16,
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
     });
 
-    let storage_texture: GPUTexture | null = null;
-    let storage_texture_view: GPUTextureView | null = null;
+    let accum_texture_a: GPUTexture | null = null;
+    let accum_texture_b: GPUTexture | null = null;
+    let accum_view_a: GPUTextureView | null = null;
+    let accum_view_b: GPUTextureView | null = null;
 
-    let compute_bind_group: GPUBindGroup | null = null;
-    let render_bind_group: GPUBindGroup | null = null;
+    let compute_bind_groups: [GPUBindGroup, GPUBindGroup] | null = null;
+    let render_bind_groups: [GPUBindGroup, GPUBindGroup] | null = null;
+
+    let frame_index = 0;
+    let use_a_as_prev = true;
 
     function rebuild_size_dependent_resources() {
         const {width, height} = resize_canvas_to_display_size();
@@ -108,31 +125,60 @@ export async function startWebGpuRenderer(canvas: HTMLCanvasElement): Promise<{ 
             alphaMode: 'opaque'
         });
 
-        device.queue.writeBuffer(params_buffer, 0, new Uint32Array([width, height]));
+        frame_index = 0;
+        use_a_as_prev = true;
+        device.queue.writeBuffer(params_buffer, 0, new Uint32Array([width, height, frame_index, 0]));
 
-        storage_texture?.destroy();
-        storage_texture = device.createTexture({
+        accum_texture_a?.destroy();
+        accum_texture_b?.destroy();
+        accum_texture_a = device.createTexture({
             size: {width, height},
-            format: 'rgba8unorm',
+            format: 'rgba16float',
             usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
-        })
-        storage_texture_view = storage_texture.createView();
-
-        compute_bind_group = device.createBindGroup({
-            layout: compute_pipeline.getBindGroupLayout(0),
-            entries: [
-                {binding: 0, resource: {buffer: params_buffer}},
-                {binding: 1, resource: storage_texture_view}
-            ],
         });
-
-        render_bind_group = device.createBindGroup({
-            layout: render_pipeline.getBindGroupLayout(0),
-            entries: [
-                {binding: 0, resource: sampler},
-                {binding: 1, resource: storage_texture_view}
-            ]
+        accum_texture_b = device.createTexture({
+            size: {width, height},
+            format: 'rgba16float',
+            usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
         });
+        accum_view_a = accum_texture_a.createView();
+        accum_view_b = accum_texture_b.createView();
+
+        compute_bind_groups = [
+            device.createBindGroup({
+                layout: compute_pipeline.getBindGroupLayout(0),
+                entries: [
+                    {binding: 0, resource: {buffer: params_buffer}},
+                    {binding: 1, resource: accum_view_a},
+                    {binding: 2, resource: accum_view_b},
+                ],
+            }),
+            device.createBindGroup({
+                layout: compute_pipeline.getBindGroupLayout(0),
+                entries: [
+                    {binding: 0, resource: {buffer: params_buffer}},
+                    {binding: 1, resource: accum_view_b},
+                    {binding: 2, resource: accum_view_a},
+                ],
+            }),
+        ];
+
+        render_bind_groups = [
+            device.createBindGroup({
+                layout: render_pipeline.getBindGroupLayout(0),
+                entries: [
+                    {binding: 0, resource: sampler},
+                    {binding: 1, resource: accum_view_b},
+                ],
+            }),
+            device.createBindGroup({
+                layout: render_pipeline.getBindGroupLayout(0),
+                entries: [
+                    {binding: 0, resource: sampler},
+                    {binding: 1, resource: accum_view_a},
+                ],
+            }),
+        ];
 
         return {width, height};
     }
@@ -142,8 +188,18 @@ export async function startWebGpuRenderer(canvas: HTMLCanvasElement): Promise<{ 
     // draw
     let running = true;
     let raf_id = 0;
-    function frame() {
+    let max_fps = opts.maxFps ?? 30;
+    let last_frame_time = 0;
+
+    function frame(now = performance.now()) {
         if (!running) return;
+
+        const min_frame_ms = max_fps > 0 ? 1000 / max_fps : 0;
+        if (min_frame_ms > 0 && now - last_frame_time < min_frame_ms) {
+            raf_id = requestAnimationFrame(frame);
+            return;
+        }
+        last_frame_time = now;
 
         const start = performance.now();
 
@@ -153,13 +209,20 @@ export async function startWebGpuRenderer(canvas: HTMLCanvasElement): Promise<{ 
             rebuild_size_dependent_resources();
         }
 
+        const ping_pong_index = use_a_as_prev ? 0 : 1;
+        device.queue.writeBuffer(
+            params_buffer,
+            0,
+            new Uint32Array([width, height, frame_index, 0])
+        );
+
         const encoder = device.createCommandEncoder();
 
         // compute pass
         {
             const pass = encoder.beginComputePass();
             pass.setPipeline(compute_pipeline);
-            pass.setBindGroup(0, compute_bind_group);
+            pass.setBindGroup(0, compute_bind_groups![ping_pong_index]);
 
             const wx = 8;
             const wy = 8;
@@ -183,18 +246,19 @@ export async function startWebGpuRenderer(canvas: HTMLCanvasElement): Promise<{ 
             });
 
             pass.setPipeline(render_pipeline);
-            pass.setBindGroup(0, render_bind_group);
+            pass.setBindGroup(0, render_bind_groups![ping_pong_index]);
             pass.draw(3, 1, 0, 0);
             pass.end();
         }
 
         device.queue.submit([encoder.finish()]);
         device.queue.onSubmittedWorkDone().then(() => {
-            console.log(`frame took ${performance.now() - start} ms`);
+            console.log(`frame ${frame_index} took ${performance.now() - start} ms`);
         });
 
-        // only one frame for now
-        // raf_id = requestAnimationFrame(frame);
+        use_a_as_prev = !use_a_as_prev;
+        frame_index += 1;
+        raf_id = requestAnimationFrame(frame);
     }
 
     raf_id = requestAnimationFrame(frame);
@@ -206,7 +270,11 @@ export async function startWebGpuRenderer(canvas: HTMLCanvasElement): Promise<{ 
                 cancelAnimationFrame(raf_id);
                 raf_id = 0;
             }
-            storage_texture?.destroy();
+            accum_texture_a?.destroy();
+            accum_texture_b?.destroy();
+        },
+        setMaxFps: (fps: number) => {
+            max_fps = Math.max(1, Math.floor(fps));
         }
     };
 }

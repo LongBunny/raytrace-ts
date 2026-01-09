@@ -1,20 +1,23 @@
 struct Params {
   width: u32,
   height: u32,
+  frame_index: u32,
+  _pad: u32,
 }
 
 const PI = 3.14159265359;
 const F32_MAX = 3.4028235e38;
 const EPS = 1.0e-4;
 
-const SAMPLES_COUNT = 200;
+const SAMPLES_COUNT = 20;
 const MAX_DEPTH = 20;
 
 const SCENE_SIZE = 6;
 var<private> SCENE: array<Sphere, SCENE_SIZE>;
 
 @group(0) @binding(0) var<uniform> params: Params;
-@group(0) @binding(1) var out_tex: texture_storage_2d<rgba8unorm, write>;
+@group(0) @binding(1) var prev_tex: texture_2d<f32>;
+@group(0) @binding(2) var next_tex: texture_storage_2d<rgba16float, write>;
 
 @compute @workgroup_size(8, 8)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
@@ -22,8 +25,6 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     let y = gid.y;
 
     if (x >= params.width || y >= params.height) { return; }
-
-    let i = x + y * params.width;
 
     // TODO: set this from cpu
     let camera = get_camera(90.0, f32(params.width) / f32(params.height));
@@ -36,10 +37,17 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         Sphere(vec3<f32>(0.0, 4.0, 3.0), 2.0, material_diffuse_light(vec3<f32>(1.0, 1.0, 1.0))),
     );
 
-    var seed: u32 = gid.x + gid.y * 4096u * 7919u;
-    let color = path_trace(x, y, camera, &seed);
+    var seed: u32 = gid.x + gid.y * 4096u * 7919u + params.frame_index * 104729u;
+    let color = path_trace(x, y, camera, &seed).xyz;
 
-    textureStore(out_tex, vec2<i32>(i32(x), i32(y)), color);
+    var avg = color;
+    if (params.frame_index > 0u) {
+        let prev_avg = textureLoad(prev_tex, vec2<i32>(i32(x), i32(y)), 0).xyz;
+        let t = 1.0 / f32(params.frame_index + 1u);
+        avg = prev_avg + (color - prev_avg) * t;
+    }
+
+    textureStore(next_tex, vec2<i32>(i32(x), i32(y)), vec4<f32>(avg, 1.0));
 }
 
 struct Sphere {

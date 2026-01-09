@@ -24,12 +24,11 @@ fn vs_main(@builtin(vertex_index) vid : u32) -> VSOut {
 }
 
 @group(0) @binding(0) var samp: sampler;
-@group(0) @binding(1) var tex: texture_2d<f32>;
-
+@group(0) @binding(1) var accum_tex: texture_2d<f32>;
 @fragment
 fn fs_main(in: VSOut) -> @location(0) vec4<f32> {
     let uv = vec2(in.uv.x, 1.0 - in.uv.y);
-    var color = textureSample(tex, samp, uv).xyz;
+    var color = textureSample(accum_tex, samp, uv).xyz;
 
     // tonemap
     color = aces_filmic(color);

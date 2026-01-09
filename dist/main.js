@@ -32,11 +32,14 @@ const exposure_value = document.getElementById('exposure_value');
 const tone_map_select = document.getElementById('tone_map_select');
 const gamma_checkbox = document.getElementById('gamma_checkbox');
 const debug_checkbox = document.getElementById('debug_checkbox');
+const webgpu_fps_input = document.getElementById('webgpu_fps_input');
+const webgpu_fps_value = document.getElementById('webgpu_fps_value');
 const accum_frame_span = document.getElementById('accum_frame_span');
 const last_render_time_span = document.getElementById('last_render_time_span');
 const average_render_time_span = document.getElementById('average_render_time_span');
 const total_render_time_span = document.getElementById('total_render_time_span');
 let debug_enabled = false;
+let webgpu_max_fps = 30;
 const webgpu_supported = check_webgpu();
 if (!webgpu_supported) {
     webgpu_option.disabled = true;
@@ -79,6 +82,11 @@ tone_map_select.addEventListener('change', () => {
     render_settings.tone_map = tone_map_select.value;
     re_render();
 });
+webgpu_fps_input.addEventListener('change', () => {
+    webgpu_max_fps = parseInt(webgpu_fps_input.value);
+    webgpu_controller?.setMaxFps(webgpu_max_fps);
+});
+webgpu_fps_input.addEventListener('input', () => webgpu_fps_value.innerText = webgpu_fps_input.value);
 reset_ui();
 renderer_select.value = DEFAULT_RENDERER;
 update_controls();
@@ -116,7 +124,7 @@ async function switch_renderer(next) {
     show_webgpu_canvas();
     clear_debug_overlay();
     try {
-        webgpu_controller = await startWebGpuRenderer(webgpu_canvas);
+        webgpu_controller = await startWebGpuRenderer(webgpu_canvas, { maxFps: webgpu_max_fps });
     }
     catch (err) {
         console.error(err);
@@ -145,6 +153,7 @@ function stop_active_renderer() {
 }
 function update_controls() {
     const cpu_controls_enabled = active_renderer === Renderer.CPU;
+    const webgpu_controls_enabled = active_renderer === Renderer.WebGPU;
     render_btn.disabled = !cpu_controls_enabled;
     bounces_input.disabled = !cpu_controls_enabled;
     samples_input.disabled = !cpu_controls_enabled;
@@ -152,6 +161,7 @@ function update_controls() {
     tone_map_select.disabled = !cpu_controls_enabled;
     gamma_checkbox.disabled = !cpu_controls_enabled;
     debug_checkbox.disabled = !cpu_controls_enabled;
+    webgpu_fps_input.disabled = !webgpu_controls_enabled;
     if (!cpu_controls_enabled) {
         cpu_renderer.setDebug(false);
         reset_ui();
@@ -182,6 +192,8 @@ function reset_ui() {
     exposure_value.innerText = exposure_input.value;
     tone_map_select.value = render_settings.tone_map;
     renderer_select.value = active_renderer;
+    webgpu_fps_input.value = '' + webgpu_max_fps;
+    webgpu_fps_value.innerText = webgpu_fps_input.value;
     accum_frame_span.innerText = `0`;
     last_render_time_span.innerText = `-`;
     average_render_time_span.innerText = `-`;
