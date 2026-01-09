@@ -7,8 +7,11 @@ const PI = 3.14159265359;
 const F32_MAX = 3.4028235e38;
 const EPS = 1.0e-4;
 
-const SAMPLES_COUNT = 2000;
+const SAMPLES_COUNT = 200;
 const MAX_DEPTH = 20;
+
+const SCENE_SIZE = 6;
+var<private> SCENE: array<Sphere, SCENE_SIZE>;
 
 @group(0) @binding(0) var<uniform> params: Params;
 @group(0) @binding(1) var out_tex: texture_storage_2d<rgba8unorm, write>;
@@ -24,6 +27,14 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
     // TODO: set this from cpu
     let camera = get_camera(90.0, f32(params.width) / f32(params.height));
+    SCENE = array<Sphere, SCENE_SIZE>(
+        Sphere(vec3<f32>(0.0, -201.0, 1.0), 200.0, material_lambertian(vec3<f32>(0.8, 0.8, 0.8))),
+        Sphere(vec3<f32>(-30.0, 0.0, 55.0), 25.0, material_lambertian(vec3<f32>(0.3, 0.4, 0.2))),
+        Sphere(vec3<f32>(0.0, 0.0, 3.0), 1.0, material_dielectric(1.52)),
+        Sphere(vec3<f32>(-2.5, 0.0, 3.0), 1.0, material_metal(vec3<f32>(0.8, 0.8, 0.8), 0.2)),
+        Sphere(vec3<f32>(2.5, 0.0, 3.0), 1.0, material_lambertian(vec3<f32>(0.59, 0.19, 0.56))),
+        Sphere(vec3<f32>(0.0, 4.0, 3.0), 2.0, material_diffuse_light(vec3<f32>(1.0, 1.0, 1.0))),
+    );
 
     var seed: u32 = gid.x + gid.y * 4096u * 7919u;
     let color = path_trace(x, y, camera, &seed);
@@ -36,16 +47,6 @@ struct Sphere {
     radius: f32,
     material: Material,
 }
-
-const SCENE_SIZE = 6;
-const SCENE = array<Sphere, SCENE_SIZE> (
-    Sphere(vec3<f32>(0.0, -201.0, 1.0), 200.0, Material(vec3<f32>(0.8, 0.8, 0.8))),
-    Sphere(vec3<f32>(-30.0, 0.0, 55.0), 25.0, Material(vec3<f32>(0.3, 0.4, 0.2))),
-    Sphere(vec3<f32>(0.0, 0.0, 3.0), 1.0, Material(vec3<f32>(1.0))),
-    Sphere(vec3<f32>(-2.5, 0.0, 3.0), 1.0, Material(vec3<f32>(0.8, 0.8, 0.8))),
-    Sphere(vec3<f32>(2.5, 0.0, 3.0), 1.0, Material(vec3<f32>(0.59, 0.19, 0.56))),
-    Sphere(vec3<f32>(0.0, 8.0, 3.0), 2.0, Material(vec3<f32>(1.0, 1.0, 1.0))),
-);
 
 struct Ray {
     origin: vec3<f32>,
@@ -61,11 +62,58 @@ struct HitInfo {
     material: Material,
 }
 
+const MATERIAL_TYPE_LAMBERTIAN = 0;
+const MATERIAL_TYPE_DIFFUSE_LIGHT = 1;
+const MATERIAL_TYPE_METAL = 2;
+const MATERIAL_TYPE_DIELECTRIC = 3;
+
 struct Material {
-    albedo: vec3<f32>
+    material_type: u32,
+
+    // lambertian & metal
+    albedo: vec3<f32>,
+
+    // metal
+    fuzz: f32,
+
+    // diffuse light
+    emission: vec3<f32>,
+
+    // dielectric
+    ior: f32,
+}
+
+fn material_lambertian(albedo: vec3<f32>) -> Material {
+    var material = Material();
+    material.material_type = MATERIAL_TYPE_LAMBERTIAN;
+    material.albedo = albedo;
+    return material;
+}
+
+fn material_diffuse_light(emission: vec3<f32>) -> Material {
+    var material = Material();
+    material.material_type = MATERIAL_TYPE_DIFFUSE_LIGHT;
+    material.emission = emission;
+    return material;
+}
+
+fn material_metal(albedo: vec3<f32>, fuzz: f32) -> Material {
+    var material = Material();
+    material.material_type = MATERIAL_TYPE_METAL;
+    material.albedo = albedo;
+    material.fuzz = fuzz;
+    return material;
+}
+
+fn material_dielectric(ior: f32) -> Material {
+    var material = Material();
+    material.material_type = MATERIAL_TYPE_DIELECTRIC;
+    material.ior = ior;
+    return material;
 }
 
 struct Scatter {
+    hit: bool,
     attenuation: vec3<f32>,
     ray: Ray,
 }
@@ -181,24 +229,17 @@ fn path_trace(x: u32, y: u32, camera: Camera, seed: ptr<function, u32>) -> vec4<
                 accum += throughput * r.attenuation;
                 break;
             }
-            throughput *= r.attenuation;
+
+            if r.emitted_hit {
+                accum += throughput * r.emitted;
+                break;
+            } else {
+                throughput *= r.attenuation;
+            }
+
             ray = r.ray;
         }
         color += accum;
-
-//        var result = RadianceResult(true, vec3<f32>(0.0), ray);
-//        var attenuation = vec3<f32>(0.0);
-//        for (var d = MAX_DEPTH; d > 0; d--) {
-//
-//            result = radiance(result.ray, seed);
-//            attenuation *= result.attenuation;
-//
-//            if result.hit == false {
-//                attenuation += result.attenuation;
-//                break;
-//            }
-//        }
-//        color += attenuation;
     }
 
     color *= 1.0 / SAMPLES_COUNT;
@@ -208,7 +249,9 @@ fn path_trace(x: u32, y: u32, camera: Camera, seed: ptr<function, u32>) -> vec4<
 
 struct RadianceResult {
     hit: bool,
+    emitted_hit: bool,
     attenuation: vec3<f32>,
+    emitted: vec3<f32>,
     ray: Ray,
 }
 
@@ -223,25 +266,119 @@ fn radiance(ray: Ray, seed: ptr<function, u32>) -> RadianceResult {
         return result;
     }
 
-    let s = scatter(ray, hit, seed);
-    result.hit = true;
-    result.attenuation = s.attenuation;
-    result.ray = s.ray;
+    let material_type = hit.material.material_type;
+    switch material_type {
+        case MATERIAL_TYPE_LAMBERTIAN: {
+            let s = scatter_lambertian(ray, hit, seed);
+            result.hit = true;
+            result.attenuation = s.attenuation;
+            result.ray = s.ray;
+            return result;
+        }
+        case MATERIAL_TYPE_DIFFUSE_LIGHT: {
+            let e = emitted(hit);
+            result.hit = true;
+            result.emitted_hit = true;
+            result.emitted = e;
+            return result;
+        }
+        case MATERIAL_TYPE_METAL: {
+            let s = scatter_metal(ray, hit, seed);
+            result.hit = true;
+            result.attenuation = s.attenuation;
+            result.ray = s.ray;
+            return result;
+        }
+        case MATERIAL_TYPE_DIELECTRIC: {
+            let s = scatter_dielectric(ray, hit, seed);
+            result.hit = true;
+            result.attenuation = s.attenuation;
+            result.ray = s.ray;
+            return result;
+        }
+        default: {
+            return result;
+        }
+    }
+
+    // unreachable
     return result;
+    // no recursion :)
     // let result = s.attenuation * radiance(s.ray, depth - 1, seed);
 }
 
-fn scatter(ray: Ray, hit: HitInfo, seed: ptr<function, u32>) -> Scatter {
+fn scatter_lambertian(ray: Ray, hit: HitInfo, seed: ptr<function, u32>) -> Scatter {
     var dir = random_in_hemisphere_cosine(hit.hit_normal, seed);
     if near_zero(dir) { dir = hit.hit_normal; }
     let origin = hit.hit_point + (hit.hit_normal * EPS);
-    return Scatter(hit.material.albedo, Ray(origin, normalize(dir)));
+    return Scatter(true, hit.material.albedo, Ray(origin, normalize(dir)));
 }
 
-fn background(ray: Ray) -> vec3<f32> {
-//    return vec3(f32(0xD1) / 255.0, f32(0xDD) / 255.0, f32(0xFC) / 255.0);
-//    return hex_to_vec3(0xbcccf4);
+fn scatter_metal(ray: Ray, hit: HitInfo, seed: ptr<function, u32>) -> Scatter {
+    var result = Scatter();
+    result.hit = false;
 
+    let reflected = reflect(normalize(ray.dir), hit.hit_normal);
+    let dir = reflected + random_in_unit_sphere(seed) * hit.material.fuzz;
+
+    if dot(dir, hit.hit_normal) <= 0 { return result; }
+
+    let origin = hit.hit_point + (hit.hit_normal * EPS);
+    result.hit = true;
+    result.attenuation = hit.material.albedo;
+    result.ray = Ray(origin, normalize(dir));
+    return result;
+}
+
+fn scatter_dielectric(ray: Ray, hit: HitInfo, seed: ptr<function, u32>) -> Scatter {
+    var result = Scatter();
+    result.hit = false;
+
+    let attenuation = vec3<f32>(1.0);
+
+    var refraction_ratio: f32;
+    if hit.front_face { refraction_ratio = 1.0 / hit.material.ior; }
+    else { refraction_ratio = hit.material.ior; };
+
+    let unit_dir = normalize(ray.dir);
+    let cos_theta = min(dot(unit_dir * -1.0, hit.hit_normal), 1.0);
+    let sin_theta = sqrt(1.0 - cos_theta * cos_theta);
+
+    let cannot_refract = refraction_ratio * sin_theta > 1.0;
+    let reflect_probability = reflectance(cos_theta, refraction_ratio);
+
+    var dir: vec3<f32>;
+    if cannot_refract || rng_next_f32(seed) < reflect_probability {
+        dir = reflect(unit_dir, hit.hit_normal);
+    } else {
+        dir = refract(unit_dir, hit.hit_normal, refraction_ratio);
+    }
+
+    var offset: vec3<f32>;
+    if dot(dir, hit.hit_normal) > 0 { offset = hit.hit_normal; } else { offset = hit.hit_normal * -1.0; }
+    let origin = hit.hit_point + (offset * EPS);
+
+    result.hit = true;
+    result.attenuation = attenuation;
+    result.ray = Ray(origin, normalize(dir));
+    return result;
+}
+
+fn reflectance(cosine: f32, ref_index: f32) -> f32 {
+    var r0 = (1.0 - ref_index) / (1.0 + ref_index);
+    r0 = r0 * r0;
+    return r0 + (1.0 - r0) * pow((1.0 - cosine), 5);
+}
+
+fn emitted(hit: HitInfo) -> vec3<f32> {
+    if hit.front_face { return hit.material.emission; }
+    else { return vec3<f32>(0.0); }
+}
+
+
+
+fn background(ray: Ray) -> vec3<f32> {
+//    return vec3<f32>(0.0);
     let d = normalize(ray.dir);
     let sun_dir = normalize(vec3<f32>(0.3, 0.8, 0.6));
 
@@ -257,9 +394,6 @@ fn background(ray: Ray) -> vec3<f32> {
     col += sun_col * pow(sun_amt, 64);
     return col;
 }
-
-
-
 
 
 // helpers
@@ -282,6 +416,13 @@ fn rng_next_f32(seed: ptr<function, u32>) -> f32 {
   return f32(rng_next_u32(seed)) / 4294967296.0;
 }
 
+fn rng_next_v3(min: f32, max: f32, seed: ptr<function, u32>) -> vec3<f32> {
+    let x = min + (max - min) * rng_next_f32(seed);
+    let y = min + (max - min) * rng_next_f32(seed);
+    let z = min + (max - min) * rng_next_f32(seed);
+    return vec3<f32>(x, y, z);
+}
+
 fn lerp(a: f32, b: f32, t: f32) -> f32 {
     return (1.0 - t) * a + b * t;
 }
@@ -292,6 +433,16 @@ fn lerp_v3(a: vec3<f32>, b: vec3<f32>, t: f32) -> vec3<f32> {
         lerp(a.y, b.y, t),
         lerp(a.z, b.z, t)
     );
+}
+
+fn random_in_unit_sphere(seed: ptr<function, u32>) -> vec3<f32> {
+    loop {
+        let p = rng_next_v3(-1.0, 1.0, seed);
+        let mag2 = dot(p, p);
+        if mag2 == 0 || mag2 >= 1.0 { continue; }
+        return p;
+    }
+    return vec3<f32>(1.0, 0.0, 0.0);
 }
 
 fn random_cosine_direction(seed: ptr<function, u32>) -> vec3<f32> {

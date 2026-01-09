@@ -74,7 +74,7 @@ export function createCpuRenderer(opts) {
         new Sphere(new Vec3(0.0, 0.0, 3.0), 1.0, new Dielectric(1.52)),
         new Sphere(new Vec3(-2.5, 0.0, 3.0), 1.0, new Metal(new Vec3(0.8, 0.8, 0.8), 0.2)),
         new Sphere(new Vec3(2.5, 0.0, 3.0), 1.0, new Lambertian(Vec3.from_hex(0xC97AC5).srgb_to_linear())),
-        new Sphere(new Vec3(0.0, 8.0, 3.0), 2.0, new DiffuseLight(new Vec3(1.0, 1.0, 1.0))),
+        new Sphere(new Vec3(0.0, 4.0, 3.0), 2.0, new DiffuseLight(new Vec3(1.0, 1.0, 1.0))),
     ]);
     function* render() {
         console.log(`rendering: bounces = ${render_settings.bounces}, samples = ${render_settings.samples}`);
