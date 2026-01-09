@@ -90,4 +90,6 @@ select {
     /*color: #202020;*/
 }
 
-select
+option[disabled] {
+    color: #808080;
+}

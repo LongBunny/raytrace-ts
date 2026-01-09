@@ -1,15 +1,15 @@
-"use strict";
 /// <reference types="@webgpu/types" />
-(async () => {
-    await main();
-})();
+export function check_webgpu() {
+    if (!("gpu" in navigator)) {
+        console.error("WebGPU is not supported in your browser.");
+        return false;
+    }
+    return true;
+}
 async function main() {
     const canvas = document.querySelector('canvas');
     const ctx = canvas.getContext('webgpu');
     // init
-    if (!("gpu" in navigator)) {
-        throw new Error("WebGPU is not supported in your browser.");
-    }
     const adapter = await navigator.gpu.requestAdapter();
     if (!adapter) {
         throw new Error("Failed to get GPU adapter.");
