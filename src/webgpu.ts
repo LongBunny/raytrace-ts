@@ -11,6 +11,9 @@ export function check_webgpu(): boolean {
 export type WebGpuRendererController = {
     stop: () => void;
     setMaxFps: (fps: number) => void;
+    pause: () => void;
+    resume: () => void;
+    clear: () => void;
 };
 
 export type WebGpuRendererStats = {
@@ -194,15 +197,24 @@ export async function startWebGpuRenderer(
         return {width, height};
     }
 
+    function reset_accumulation() {
+        rebuild_size_dependent_resources();
+    }
+
     let {width, height} = rebuild_size_dependent_resources();
 
     // draw
     let running = true;
+    let paused = false;
     let raf_id = 0;
     let max_fps = opts.maxFps ?? 30;
 
     function frame(now = performance.now()) {
         if (!running) return;
+        if (paused) {
+            raf_id = 0;
+            return;
+        }
 
         const min_frame_ms = max_fps > 0 ? 1000 / max_fps : 0;
         if (min_frame_ms > 0 && now - last_frame_time < min_frame_ms) {
@@ -275,7 +287,9 @@ export async function startWebGpuRenderer(
 
         use_a_as_prev = !use_a_as_prev;
         frame_index += 1;
-        raf_id = requestAnimationFrame(frame);
+        if (!paused) {
+            raf_id = requestAnimationFrame(frame);
+        }
     }
 
     raf_id = requestAnimationFrame(frame);
@@ -283,6 +297,7 @@ export async function startWebGpuRenderer(
     return {
         stop: () => {
             running = false;
+            paused = false;
             if (raf_id) {
                 cancelAnimationFrame(raf_id);
                 raf_id = 0;
@@ -292,7 +307,28 @@ export async function startWebGpuRenderer(
         },
         setMaxFps: (fps: number) => {
             max_fps = Math.max(1, Math.floor(fps));
-        }
+        },
+        pause: () => {
+            if (!running) return;
+            paused = true;
+            if (raf_id) {
+                cancelAnimationFrame(raf_id);
+                raf_id = 0;
+            }
+        },
+        resume: () => {
+            if (!running || !paused) return;
+            paused = false;
+            if (!raf_id) {
+                raf_id = requestAnimationFrame(frame);
+            }
+        },
+        clear: () => {
+            reset_accumulation();
+            if (running && !paused && !raf_id) {
+                raf_id = requestAnimationFrame(frame);
+            }
+        },
     };
 }
 

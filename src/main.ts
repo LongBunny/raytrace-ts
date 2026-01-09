@@ -19,7 +19,7 @@ enum Renderer {
     WebGPU = 'WebGPU',
 }
 
-const DEFAULT_RENDERER: Renderer = Renderer.WebGPU;
+const DEFAULT_RENDERER: Renderer = Renderer.CPU;
 let active_renderer: Renderer = Renderer.CPU;
 let webgpu_controller: WebGpuRendererController | null = null;
 
@@ -28,6 +28,7 @@ const render_settings = cpu_renderer.getSettings();
 // ui
 
 const render_btn = document.getElementById('render_btn') as HTMLButtonElement;
+const clear_btn = document.getElementById('clear_btn') as HTMLButtonElement;
 const renderer_select = document.getElementById('renderer_select') as HTMLSelectElement;
 const webgpu_option = document.getElementById('webgpu_option') as HTMLOptionElement;
 
@@ -61,6 +62,7 @@ const webgpu_bounces = 20;
 const webgpu_exposure = 1.0;
 const webgpu_tone_map: ToneMap = 'aces';
 const webgpu_gamma_correction = true;
+let renderer_running = false;
 
 const webgpu_supported = check_webgpu();
 if (!webgpu_supported) {
@@ -91,7 +93,8 @@ debug_checkbox.addEventListener('change', () => {
     }
 });
 
-render_btn.addEventListener('click', re_render);
+render_btn.addEventListener('click', () => void toggle_render());
+clear_btn.addEventListener('click', () => clear_render());
 
 bounces_input.addEventListener('change', () => {
     render_settings.bounces = parseInt(bounces_input.value);
@@ -127,11 +130,14 @@ renderer_select.value = DEFAULT_RENDERER;
 update_controls();
 show_cpu_canvases();
 start_default_renderer(DEFAULT_RENDERER);
+update_render_button();
 
 function start_default_renderer(renderer: Renderer) {
     if (renderer === Renderer.CPU) {
         cpu_renderer.setDebug(debug_enabled);
         cpu_renderer.start();
+        renderer_running = true;
+        update_render_button();
         return;
     }
     void switch_renderer(renderer);
@@ -149,6 +155,8 @@ async function switch_renderer(next: Renderer) {
         cpu_renderer.setDebug(debug_enabled);
         cpu_renderer.start();
         cpu_renderer.reRender();
+        renderer_running = true;
+        update_render_button();
         return;
     }
 
@@ -158,6 +166,8 @@ async function switch_renderer(next: Renderer) {
         update_controls();
         cpu_renderer.setDebug(debug_enabled);
         cpu_renderer.start();
+        renderer_running = true;
+        update_render_button();
         return;
     }
 
@@ -166,10 +176,9 @@ async function switch_renderer(next: Renderer) {
     reset_ui();
 
     try {
-        webgpu_controller = await startWebGpuRenderer(webgpu_canvas, {
-            maxFps: webgpu_max_fps,
-            onFrameDone: (stats) => update_webgpu_ui(stats)
-        });
+        await start_webgpu_renderer();
+        renderer_running = true;
+        update_render_button();
     } catch (err) {
         console.error(err);
         renderer_select.value = Renderer.CPU;
@@ -178,13 +187,18 @@ async function switch_renderer(next: Renderer) {
         show_cpu_canvases();
         cpu_renderer.setDebug(debug_enabled);
         cpu_renderer.start();
+        renderer_running = true;
+        update_render_button();
     }
 }
 
 function re_render() {
     if (active_renderer !== Renderer.CPU) return;
     reset_ui();
+    cpu_renderer.start();
     cpu_renderer.reRender();
+    renderer_running = true;
+    update_render_button();
 }
 
 function stop_active_renderer() {
@@ -194,12 +208,14 @@ function stop_active_renderer() {
         webgpu_controller?.stop();
         webgpu_controller = null;
     }
+    renderer_running = false;
+    update_render_button();
 }
 
 function update_controls() {
     const cpu_controls_enabled = active_renderer === Renderer.CPU;
     const webgpu_controls_enabled = active_renderer === Renderer.WebGPU;
-    render_btn.disabled = !cpu_controls_enabled;
+    render_btn.disabled = false;
     bounces_input.disabled = !cpu_controls_enabled;
     samples_input.disabled = !cpu_controls_enabled;
     exposure_input.disabled = !cpu_controls_enabled;
@@ -265,6 +281,13 @@ function reset_ui() {
     }
 }
 
+function reset_stats_ui() {
+    accum_frame_span.innerText = `0`;
+    last_render_time_span.innerText = `-`;
+    average_render_time_span.innerText = `-`;
+    total_render_time_span.innerText = `-`;
+}
+
 function update_ui(stats: CpuRendererStats) {
     if (stats.frameSampleCount > 1) {
         last_render_time_span.innerText = `${(stats.lastFrameTimeMs / 1000).toFixed(3)}s`;
@@ -290,4 +313,78 @@ function apply_webgpu_ui_defaults() {
     exposure_value.innerText = exposure_input.value;
     tone_map_select.value = webgpu_tone_map;
     gamma_checkbox.checked = webgpu_gamma_correction;
+}
+
+async function toggle_render() {
+    if (renderer_running) {
+        pause_active_renderer();
+        return;
+    }
+    await resume_active_renderer();
+}
+
+async function resume_active_renderer() {
+    if (active_renderer === Renderer.CPU) {
+        cpu_renderer.start();
+        renderer_running = true;
+        update_render_button();
+        return;
+    }
+    if (!webgpu_supported) {
+        active_renderer = Renderer.CPU;
+        renderer_select.value = Renderer.CPU;
+        update_controls();
+        cpu_renderer.setDebug(debug_enabled);
+        cpu_renderer.start();
+        renderer_running = true;
+        update_render_button();
+        return;
+    }
+    show_webgpu_canvas();
+    clear_debug_overlay();
+    try {
+        if (webgpu_controller) {
+            webgpu_controller.resume();
+        } else {
+            await start_webgpu_renderer();
+        }
+        renderer_running = true;
+        update_render_button();
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+async function start_webgpu_renderer() {
+    webgpu_controller = await startWebGpuRenderer(webgpu_canvas, {
+        maxFps: webgpu_max_fps,
+        onFrameDone: (stats) => update_webgpu_ui(stats)
+    });
+}
+
+function update_render_button() {
+    render_btn.innerText = renderer_running ? 'stop' : 'start';
+}
+
+function clear_render() {
+    if (active_renderer === Renderer.CPU) {
+        cpu_renderer.reRender();
+        if (renderer_running) {
+            cpu_renderer.start();
+        }
+        reset_stats_ui();
+        return;
+    }
+    webgpu_controller?.clear();
+    reset_stats_ui();
+}
+
+function pause_active_renderer() {
+    if (active_renderer === Renderer.CPU) {
+        cpu_renderer.stop();
+    } else {
+        webgpu_controller?.pause();
+    }
+    renderer_running = false;
+    update_render_button();
 }
