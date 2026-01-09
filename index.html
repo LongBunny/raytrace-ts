@@ -111,7 +111,11 @@
     function download() {
         const link = document.createElement('a');
         link.download = 'render.png';
-        link.href = render_canvas.toDataURL();
+        if (renderer_select.value === 'CPU') {
+            link.href = render_canvas.toDataURL();
+        } else {
+            link.href = webgpu_canvas.toDataURL();
+        }
         link.click();
     }
 </script>
