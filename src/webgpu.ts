@@ -13,8 +13,15 @@ export type WebGpuRendererController = {
     setMaxFps: (fps: number) => void;
 };
 
+export type WebGpuRendererStats = {
+    frameSampleCount: number;
+    lastFrameTimeMs: number;
+    frameTimeSumMs: number;
+};
+
 export type WebGpuRendererOptions = {
     maxFps?: number;
+    onFrameDone?: (stats: WebGpuRendererStats) => void;
 };
 
 export async function startWebGpuRenderer(
@@ -115,6 +122,8 @@ export async function startWebGpuRenderer(
 
     let frame_index = 0;
     let use_a_as_prev = true;
+    let last_frame_time = 0;
+    let frame_time_sum = 0;
 
     function rebuild_size_dependent_resources() {
         const {width, height} = resize_canvas_to_display_size();
@@ -126,6 +135,8 @@ export async function startWebGpuRenderer(
         });
 
         frame_index = 0;
+        last_frame_time = 0;
+        frame_time_sum = 0;
         use_a_as_prev = true;
         device.queue.writeBuffer(params_buffer, 0, new Uint32Array([width, height, frame_index, 0]));
 
@@ -189,7 +200,6 @@ export async function startWebGpuRenderer(
     let running = true;
     let raf_id = 0;
     let max_fps = opts.maxFps ?? 30;
-    let last_frame_time = 0;
 
     function frame(now = performance.now()) {
         if (!running) return;
@@ -251,9 +261,16 @@ export async function startWebGpuRenderer(
             pass.end();
         }
 
+        const frame_sample_count = frame_index + 1;
         device.queue.submit([encoder.finish()]);
         device.queue.onSubmittedWorkDone().then(() => {
-            console.log(`frame ${frame_index} took ${performance.now() - start} ms`);
+            last_frame_time = performance.now() - start;
+            frame_time_sum += last_frame_time;
+            opts.onFrameDone?.({
+                frameSampleCount: frame_sample_count,
+                lastFrameTimeMs: last_frame_time,
+                frameTimeSumMs: frame_time_sum
+            });
         });
 
         use_a_as_prev = !use_a_as_prev;

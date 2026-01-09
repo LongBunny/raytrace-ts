@@ -1,6 +1,6 @@
 import {createCpuRenderer, CpuRendererStats} from './cpu.js';
 import {ToneMap} from "./pathtracer.js";
-import {check_webgpu, startWebGpuRenderer, WebGpuRendererController} from "./webgpu.js";
+import {check_webgpu, startWebGpuRenderer, WebGpuRendererController, WebGpuRendererStats} from "./webgpu.js";
 
 const render_canvas = document.getElementById('render_canvas') as HTMLCanvasElement;
 const debug_canvas = document.getElementById('debug_canvas') as HTMLCanvasElement;
@@ -56,6 +56,11 @@ const total_render_time_span = document.getElementById('total_render_time_span')
 
 let debug_enabled = false;
 let webgpu_max_fps = 30;
+const webgpu_samples_per_pixel = 20;
+const webgpu_bounces = 20;
+const webgpu_exposure = 1.0;
+const webgpu_tone_map: ToneMap = 'aces';
+const webgpu_gamma_correction = true;
 
 const webgpu_supported = check_webgpu();
 if (!webgpu_supported) {
@@ -158,9 +163,13 @@ async function switch_renderer(next: Renderer) {
 
     show_webgpu_canvas();
     clear_debug_overlay();
+    reset_ui();
 
     try {
-        webgpu_controller = await startWebGpuRenderer(webgpu_canvas, {maxFps: webgpu_max_fps});
+        webgpu_controller = await startWebGpuRenderer(webgpu_canvas, {
+            maxFps: webgpu_max_fps,
+            onFrameDone: (stats) => update_webgpu_ui(stats)
+        });
     } catch (err) {
         console.error(err);
         renderer_select.value = Renderer.CPU;
@@ -202,6 +211,10 @@ function update_controls() {
     if (!cpu_controls_enabled) {
         cpu_renderer.setDebug(false);
         reset_ui();
+    }
+
+    if (webgpu_controls_enabled) {
+        apply_webgpu_ui_defaults();
     }
 }
 
@@ -246,6 +259,10 @@ function reset_ui() {
     last_render_time_span.innerText = `-`;
     average_render_time_span.innerText = `-`;
     total_render_time_span.innerText = `-`;
+
+    if (active_renderer === Renderer.WebGPU) {
+        apply_webgpu_ui_defaults();
+    }
 }
 
 function update_ui(stats: CpuRendererStats) {
@@ -258,4 +275,19 @@ function update_ui(stats: CpuRendererStats) {
     }
     total_render_time_span.innerText = `${(stats.frameTimeSumMs / 1000).toFixed(3)}s`;
     accum_frame_span.innerText = `${stats.frameSampleCount - 1}`;
+}
+
+function update_webgpu_ui(stats: WebGpuRendererStats) {
+    update_ui(stats);
+}
+
+function apply_webgpu_ui_defaults() {
+    bounces_input.value = '' + webgpu_bounces;
+    bounces_value.innerText = bounces_input.value;
+    samples_input.value = '' + webgpu_samples_per_pixel;
+    samples_value.innerText = samples_input.value;
+    exposure_input.value = '' + webgpu_exposure;
+    exposure_value.innerText = exposure_input.value;
+    tone_map_select.value = webgpu_tone_map;
+    gamma_checkbox.checked = webgpu_gamma_correction;
 }

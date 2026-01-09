@@ -79,6 +79,8 @@ export async function startWebGpuRenderer(canvas, opts = {}) {
     let render_bind_groups = null;
     let frame_index = 0;
     let use_a_as_prev = true;
+    let last_frame_time = 0;
+    let frame_time_sum = 0;
     function rebuild_size_dependent_resources() {
         const { width, height } = resize_canvas_to_display_size();
         ctx.configure({
@@ -87,6 +89,8 @@ export async function startWebGpuRenderer(canvas, opts = {}) {
             alphaMode: 'opaque'
         });
         frame_index = 0;
+        last_frame_time = 0;
+        frame_time_sum = 0;
         use_a_as_prev = true;
         device.queue.writeBuffer(params_buffer, 0, new Uint32Array([width, height, frame_index, 0]));
         accum_texture_a?.destroy();
@@ -144,7 +148,6 @@ export async function startWebGpuRenderer(canvas, opts = {}) {
     let running = true;
     let raf_id = 0;
     let max_fps = opts.maxFps ?? 30;
-    let last_frame_time = 0;
     function frame(now = performance.now()) {
         if (!running)
             return;
@@ -189,9 +192,16 @@ export async function startWebGpuRenderer(canvas, opts = {}) {
             pass.draw(3, 1, 0, 0);
             pass.end();
         }
+        const frame_sample_count = frame_index + 1;
         device.queue.submit([encoder.finish()]);
         device.queue.onSubmittedWorkDone().then(() => {
-            console.log(`frame ${frame_index} took ${performance.now() - start} ms`);
+            last_frame_time = performance.now() - start;
+            frame_time_sum += last_frame_time;
+            opts.onFrameDone?.({
+                frameSampleCount: frame_sample_count,
+                lastFrameTimeMs: last_frame_time,
+                frameTimeSumMs: frame_time_sum
+            });
         });
         use_a_as_prev = !use_a_as_prev;
         frame_index += 1;
